@@ -1,4 +1,9 @@
-import express from "express";
+import express from "express"; //express is a framework for building web applications and APIs
+import cors from "cors"; //cors is a middleware for enabling cross-origin resource sharing
+import cookieParser from "cookie-parser"; //cookie-parser is a middleware for parsing cookies from the request headers
+import compression from "compression";  //compression is a middleware that compresses http responses using algorithms such as gzip/Brotli depending on negotiation
+import helmet from "helmet";    //helmet is a middleware that sets various http headers
+import morgan from "morgan";    //morgan is a middleware that logs http requests to the console
 
 const app=express();
 
