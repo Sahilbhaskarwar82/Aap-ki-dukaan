@@ -5,6 +5,8 @@ import { Order } from "../models/Order.model.js";
 import {
   generatePurchaseOrderSummary,
   verifyOrderAuthorization,
+  getSupplierSettlement,
+  updateSupplierSettlement,
 } from "../services/orders/order.service.js";
 
 /**
@@ -12,12 +14,6 @@ import {
  *
  * Downloads or retrieves structured Purchase Order document summary.
  * Supports both JSON and printable HTML output.
- *
- * Authorization:
- *  - Participants (Retailer shop owners in the pool)
- *  - Assigned Wholesaler / Supplier
- *  - Platform Admins and Reviewers
- *  - Non-participants receive 403 Forbidden.
  */
 export const getPoSummary = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -26,7 +22,6 @@ export const getPoSummary = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Order ID is required.");
   }
 
-  // Determine requested output format
   const formatQuery = req.query.format?.toLowerCase();
   const acceptHeader = req.headers.accept?.toLowerCase();
   const format =
@@ -51,6 +46,46 @@ export const getPoSummary = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Task SRU-07: GET /api/orders/:id/settlement
+ *
+ * Retrieves the SupplierSettlement record for an order.
+ * Restricted to Admins, Reviewers, and the assigned Supplier.
+ */
+export const getSettlement = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const settlement = await getSupplierSettlement(id, req.user);
+
+  return res.status(200).json(
+    new APIResponse(
+      200,
+      settlement,
+      "Supplier settlement record retrieved successfully."
+    )
+  );
+});
+
+/**
+ * Task SRU-07: PATCH /api/orders/:id/settlement
+ *
+ * Updates supplier settlement status (Admin only).
+ */
+export const updateSettlement = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const updates = req.body;
+
+  const settlement = await updateSupplierSettlement(id, updates, req.user);
+
+  return res.status(200).json(
+    new APIResponse(
+      200,
+      settlement,
+      "Supplier settlement record updated successfully."
+    )
+  );
+});
+
+/**
  * GET /api/orders/:id
  * Fetches order details with role-based authorization check.
  */
@@ -68,7 +103,6 @@ export const getOrderById = asyncHandler(async (req, res) => {
     throw new ApiError(404, `Order ${id} not found.`);
   }
 
-  // Authorize caller
   verifyOrderAuthorization(order, req.user);
 
   return res.status(200).json(
@@ -95,7 +129,6 @@ export const listOrders = asyncHandler(async (req, res) => {
       filter.supplierId = supplierId;
     }
   }
-  // Admins & Reviewers see all orders
 
   const orders = await Order.find(filter)
     .sort({ createdAt: -1 })

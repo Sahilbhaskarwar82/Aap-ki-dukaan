@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { Order } from "../../models/Order.model.js";
 import { Payment } from "../../models/Payment.model.js";
+import { SupplierSettlement } from "../../models/SupplierSettlement.model.js";
 import { ApiError } from "../../utils/apiError.js";
 import { toDecimalString } from "../payments/paypalAdapter.service.js";
 
@@ -15,17 +16,6 @@ export function formatCurrency(amountMinor, currency = "INR") {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
-}
-
-/**
- * Helper to safely resolve a model or null if not registered.
- */
-function getOptionalModel(modelName) {
-  try {
-    return mongoose.model(modelName);
-  } catch {
-    return null;
-  }
 }
 
 /**
@@ -426,7 +416,7 @@ export async function generatePurchaseOrderSummary(
   // 2. Authorize Requesting User (FR-ORDER-006 / SRU-06 authorization check)
   const authInfo = verifyOrderAuthorization(order, requestingUser);
 
-  // 3. Resolve populated records safely (with fallbacks if models are stubs)
+  // 3. Resolve populated records safely
   const supplierDoc = order.supplierId || {};
   const productDoc = order.productId || {};
   const snapshotDoc = order.priceSnapshotId || {};
@@ -560,9 +550,193 @@ export async function generatePurchaseOrderSummary(
   return { summary };
 }
 
-// Named exports for both module conventions
+// ─────────────────────────────────────────────────────────────────────────────
+// Task SRU-07: Supplier Settlement Lifecycle Service
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Creates or retrieves the SupplierSettlement record for an Order.
+ *
+ * Enforces BR-009 & FR-PAY-016:
+ * Tracks wholesaler payout in SupplierSettlement completely separately from buyer
+ * Payment captures.
+ *
+ * In the prototype:
+ *  - mode defaults to 'DEMO'
+ *  - settlementStatus defaults to 'SIMULATED'
+ *  - notes explicitly declare prototype simulation
+ *
+ * @param {string} orderId Mongo ObjectId or orderNumber string
+ * @param {object} options { mode: 'DEMO'|'MANUAL'|'INTEGRATED', settlementStatus, notes, providerReference }
+ * @returns {Promise<mongoose.Document>}
+ */
+export async function createOrGetSupplierSettlement(orderId, options = {}) {
+  const query = mongoose.isValidObjectId(orderId)
+    ? { _id: orderId }
+    : { orderNumber: orderId };
+
+  const order = await Order.findOne(query);
+  if (!order) {
+    throw new ApiError(404, `Order not found with identifier: ${orderId}`);
+  }
+
+  // Check if settlement record already exists
+  let settlement = await SupplierSettlement.findOne({ orderId: order._id });
+  if (settlement) {
+    return settlement;
+  }
+
+  const mode = options.mode || "DEMO";
+  const settlementStatus = options.settlementStatus || "SIMULATED";
+  const notes =
+    options.notes ||
+    "Simulated supplier settlement for prototype demonstration. Payout is tracked separately from buyer PayPal captures.";
+
+  settlement = await SupplierSettlement.create({
+    orderId: order._id,
+    poolId: order.poolId,
+    supplierId: order.supplierId,
+    amountMinor: order.grandTotalMinor,
+    currency: order.currency,
+    mode,
+    settlementStatus,
+    providerReference: options.providerReference || null,
+    confirmedAt: settlementStatus === "CONFIRMED" ? new Date() : null,
+    notes,
+  });
+
+  return settlement;
+}
+
+/**
+ * Retrieves the SupplierSettlement record for an order with authorization check.
+ *
+ * Authorization:
+ *  - ADMIN and REVIEWER can view.
+ *  - The assigned SUPPLIER can view.
+ *  - Retailers / Shop owners receive 403 Forbidden (settlement details are private between platform & supplier).
+ *
+ * @param {string} orderId
+ * @param {object} requestingUser
+ * @returns {Promise<mongoose.Document>}
+ */
+export async function getSupplierSettlement(orderId, requestingUser) {
+  if (!requestingUser) {
+    throw new ApiError(401, "Authentication required to view supplier settlement.");
+  }
+
+  const query = mongoose.isValidObjectId(orderId)
+    ? { _id: orderId }
+    : { orderNumber: orderId };
+
+  const order = await Order.findOne(query);
+  if (!order) {
+    throw new ApiError(404, `Order not found with identifier: ${orderId}`);
+  }
+
+  const role = requestingUser.role;
+
+  // Authorization check
+  const isAdminOrReviewer = role === "ADMIN" || role === "REVIEWER";
+  const userSupplierId =
+    requestingUser.supplierId?.toString() || requestingUser._id?.toString();
+  const orderSupplierId = order.supplierId?.toString();
+  const isAssignedSupplier =
+    role === "SUPPLIER" && userSupplierId && orderSupplierId && userSupplierId === orderSupplierId;
+
+  if (!isAdminOrReviewer && !isAssignedSupplier) {
+    throw new ApiError(
+      403,
+      "Forbidden: You do not have permission to view supplier settlement records."
+    );
+  }
+
+  // Get or initialize settlement
+  let settlement = await SupplierSettlement.findOne({ orderId: order._id });
+  if (!settlement) {
+    settlement = await createOrGetSupplierSettlement(order._id);
+  }
+
+  return settlement;
+}
+
+/**
+ * Updates the settlement status or details (Admin only).
+ *
+ * @param {string} orderId
+ * @param {object} updates { settlementStatus, mode, providerReference, notes }
+ * @param {object} requestingUser
+ * @returns {Promise<mongoose.Document>}
+ */
+export async function updateSupplierSettlement(orderId, updates = {}, requestingUser) {
+  if (!requestingUser) {
+    throw new ApiError(401, "Authentication required to update supplier settlement.");
+  }
+
+  if (requestingUser.role !== "ADMIN") {
+    throw new ApiError(
+      403,
+      "Forbidden: Only platform administrators can modify supplier settlement records."
+    );
+  }
+
+  const query = mongoose.isValidObjectId(orderId)
+    ? { _id: orderId }
+    : { orderNumber: orderId };
+
+  const order = await Order.findOne(query);
+  if (!order) {
+    throw new ApiError(404, `Order not found with identifier: ${orderId}`);
+  }
+
+  let settlement = await SupplierSettlement.findOne({ orderId: order._id });
+  if (!settlement) {
+    settlement = await createOrGetSupplierSettlement(order._id);
+  }
+
+  const allowedStatuses = [
+    "NOT_STARTED",
+    "SIMULATED",
+    "PENDING",
+    "CONFIRMED",
+    "FAILED",
+    "NEEDS_REVIEW",
+  ];
+  if (updates.settlementStatus && !allowedStatuses.includes(updates.settlementStatus)) {
+    throw new ApiError(
+      400,
+      `Invalid settlementStatus: ${updates.settlementStatus}. Allowed: ${allowedStatuses.join(", ")}`
+    );
+  }
+
+  const allowedModes = ["DEMO", "MANUAL", "INTEGRATED"];
+  if (updates.mode && !allowedModes.includes(updates.mode)) {
+    throw new ApiError(
+      400,
+      `Invalid mode: ${updates.mode}. Allowed: ${allowedModes.join(", ")}`
+    );
+  }
+
+  if (updates.settlementStatus) {
+    settlement.settlementStatus = updates.settlementStatus;
+    if (updates.settlementStatus === "CONFIRMED") {
+      settlement.confirmedAt = updates.confirmedAt || new Date();
+    }
+  }
+
+  if (updates.mode) settlement.mode = updates.mode;
+  if (updates.providerReference !== undefined) settlement.providerReference = updates.providerReference;
+  if (updates.notes !== undefined) settlement.notes = updates.notes;
+
+  await settlement.save();
+  return settlement;
+}
+
 export default {
   generatePurchaseOrderSummary,
   verifyOrderAuthorization,
   formatCurrency,
+  createOrGetSupplierSettlement,
+  getSupplierSettlement,
+  updateSupplierSettlement,
 };

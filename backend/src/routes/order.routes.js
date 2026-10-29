@@ -1,6 +1,8 @@
 import { Router } from "express";
 import {
   getPoSummary,
+  getSettlement,
+  updateSettlement,
   getOrderById,
   listOrders,
 } from "../controllers/order.controller.js";
@@ -21,6 +23,20 @@ function devAuthStub(req, _res, next) {
  * Downloads printable Purchase Order document (JSON or HTML).
  */
 router.get("/:id/po-summary", devAuthStub, getPoSummary);
+
+/**
+ * Task SRU-07:
+ * GET /api/orders/:id/settlement
+ * Retrieves SupplierSettlement record for an order (Admins, Reviewers, assigned Supplier).
+ */
+router.get("/:id/settlement", devAuthStub, getSettlement);
+
+/**
+ * Task SRU-07:
+ * PATCH /api/orders/:id/settlement
+ * Updates SupplierSettlement status/mode (Admin only).
+ */
+router.patch("/:id/settlement", devAuthStub, updateSettlement);
 
 /**
  * GET /api/orders/:id
