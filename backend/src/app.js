@@ -8,6 +8,7 @@ import morgan from "morgan";    //morgan is a middleware that logs http requests
 // routes
 import paymentRouter from "./routes/payment.routes.js";
 import orderRouter from "./routes/order.routes.js";
+import notificationRouter from "./routes/notification.routes.js";
 
 const app = express();
 
@@ -37,6 +38,7 @@ app.use(cookieParser()); //this middleware parses incoming cookies from the brow
 // Mount application routes
 app.use("/api/payments", paymentRouter);
 app.use("/api/orders", orderRouter);
+app.use("/api/notifications", notificationRouter);
 
 // Centralized error handler
 app.use((err, _req, res, _next) => {
