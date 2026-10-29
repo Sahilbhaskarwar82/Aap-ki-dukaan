@@ -5,12 +5,18 @@ import compression from "compression";  //compression is a middleware that compr
 import helmet from "helmet";    //helmet is a middleware that sets various http headers
 import morgan from "morgan";    //morgan is a middleware that logs http requests to the console
 
+// middleware
+import correlationIdMiddleware from "./middleware/correlationId.middleware.js";
+
 // routes
 import paymentRouter from "./routes/payment.routes.js";
 import orderRouter from "./routes/order.routes.js";
 import notificationRouter from "./routes/notification.routes.js";
 
 const app = express();
+
+// Attach UUID X-Correlation-Id to all requests and responses (SRU-09)
+app.use(correlationIdMiddleware);
 
 //compress all responses (must be first)
 app.use(compression());

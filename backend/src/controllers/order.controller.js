@@ -8,6 +8,7 @@ import {
   getSupplierSettlement,
   updateSupplierSettlement,
 } from "../services/orders/order.service.js";
+import { getOrderActivityTimeline } from "../services/notifications/audit.service.js";
 
 /**
  * Task SRU-06: GET /api/orders/:id/po-summary
@@ -81,6 +82,37 @@ export const updateSettlement = asyncHandler(async (req, res) => {
       200,
       settlement,
       "Supplier settlement record updated successfully."
+    )
+  );
+});
+
+/**
+ * Task SRU-09: GET /api/orders/:id/activity
+ *
+ * Retrieves chronological audit activity timeline for an order.
+ */
+export const getOrderActivity = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { page, limit, sortOrder } = req.query;
+
+  const order = await Order.findById(id).lean();
+  if (!order) {
+    throw new ApiError(404, `Order ${id} not found.`);
+  }
+
+  verifyOrderAuthorization(order, req.user);
+
+  const timeline = await getOrderActivityTimeline(order._id, {
+    page,
+    limit,
+    sortOrder,
+  });
+
+  return res.status(200).json(
+    new APIResponse(
+      200,
+      timeline,
+      "Order activity timeline retrieved successfully."
     )
   );
 });

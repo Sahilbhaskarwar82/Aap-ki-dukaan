@@ -3,6 +3,7 @@ import {
   getPoSummary,
   getSettlement,
   updateSettlement,
+  getOrderActivity,
   getOrderById,
   listOrders,
 } from "../controllers/order.controller.js";
@@ -37,6 +38,13 @@ router.get("/:id/settlement", devAuthStub, getSettlement);
  * Updates SupplierSettlement status/mode (Admin only).
  */
 router.patch("/:id/settlement", devAuthStub, updateSettlement);
+
+/**
+ * Task SRU-09:
+ * GET /api/orders/:id/activity
+ * Retrieves chronological audit activity timeline for an order.
+ */
+router.get("/:id/activity", devAuthStub, getOrderActivity);
 
 /**
  * GET /api/orders/:id
