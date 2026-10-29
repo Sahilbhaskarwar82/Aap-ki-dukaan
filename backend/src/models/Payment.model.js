@@ -100,13 +100,21 @@ const paymentSchema = new mongoose.Schema(
     /**
      * PayPal capture ID returned by POST /v2/checkout/orders/:id/capture.
      * Sparse-unique: only set once — prevents double-capture on retries.
+     *
+     * NOTE: sparse index means documents where providerCaptureId is null are
+     * excluded from the uniqueness constraint, allowing many CREATED payments
+     * to coexist with null captureId before any capture succeeds.
+     * We deliberately omit `default: null` here so Mongoose does not write
+     * an explicit null to the field — the sparse index only works when the
+     * field is truly absent (or undefined) in documents that haven't been
+     * captured yet.
      */
     providerCaptureId: {
       type: String,
-      unique: true,
-      sparse: true,
-      default: null,
-      index: true,
+      index: {
+        unique: true,
+        sparse: true,
+      },
     },
 
     /**
