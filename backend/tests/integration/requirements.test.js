@@ -345,5 +345,50 @@ Thermal POS Paper Rolls,PRINTING,50,ROLL,LUCKNOW,50 rolls/case`;
       expect(res.body.success).toBe(false);
     });
   });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 5. AI Requirement Extraction Trigger (POST /:id/extract - SAH-04)
+  // ───────────────────────────────────────────────────────────────────────────
+  describe("AI Requirement Extraction Trigger (POST /api/requirements/:id/extract)", () => {
+    it("triggers AI extraction and transitions status from DRAFT to NEEDS_REVIEW", async () => {
+      const reqDoc = await Requirement.create({
+        shopId: shopAId,
+        createdByUserId: userAId,
+        sourceType: "TEXT",
+        originalDescription: "We need 25 boxes of 12-oz paper cups for our cafe in Lucknow",
+        status: "DRAFT",
+      });
+
+      const res = await request(testApp).post(`/api/requirements/${reqDoc._id}/extract`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.status).toBe("NEEDS_REVIEW");
+      expect(res.body.data.extractedFields).toBeDefined();
+      expect(res.body.data.extractedFields.productName).toContain("12-oz");
+      expect(res.body.data.extractedFields.requestedQuantity).toBe(25);
+
+      // Verify status updated in MongoDB
+      const updatedInDb = await Requirement.findById(reqDoc._id);
+      expect(updatedInDb.status).toBe("NEEDS_REVIEW");
+      expect(updatedInDb.extractedFields.requestedQuantity).toBe(25);
+    });
+
+    it("transitions requirement to FAILED_EXTRACTION when requirement has no text or document", async () => {
+      const emptyDoc = await Requirement.create({
+        shopId: shopAId,
+        createdByUserId: userAId,
+        sourceType: "FORM",
+        originalDescription: "",
+        status: "DRAFT",
+      });
+
+      const res = await request(testApp).post(`/api/requirements/${emptyDoc._id}/extract`);
+
+      // Fails with 400 because there is no content to extract
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+    });
+  });
 });
 

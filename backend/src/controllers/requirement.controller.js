@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import { Requirement } from "../models/Requirement.model.js";
 import { UploadedDocument } from "../models/UploadedDocument.model.js";
 import { parseRequirementCsv } from "../utils/csvParser.js";
+import { extractRequirement } from "../services/ai/extraction.service.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { APIResponse } from "../utils/apiResponse.js";
 import { ApiError } from "../utils/apiError.js";
@@ -359,5 +360,85 @@ export const importCsvRequirements = asyncHandler(async (req, res) => {
       `Successfully imported ${inserted.length} requirements as drafts.`
     )
   );
+});
+
+/**
+ * Task SAH-04: POST /api/requirements/:id/extract
+ * Triggers AI attribute extraction on requirement description/document.
+ * On success -> transitions status to NEEDS_REVIEW and saves extractedFields.
+ * On failure -> transitions status to FAILED_EXTRACTION for immediate manual fallback.
+ */
+export const extractRequirementById = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new ApiError(400, "Invalid requirement ID format.");
+  }
+
+  const requirement = await Requirement.findById(id);
+  if (!requirement) {
+    throw new ApiError(404, "Purchasing requirement not found.");
+  }
+
+  // Ownership guard
+  if (req.user && req.user.role === "SHOP_OWNER" && req.user.shopId) {
+    if (!requirement.shopId.equals(req.user.shopId)) {
+      throw new ApiError(403, "Access denied: You cannot trigger extraction for another shop's requirement.");
+    }
+  }
+
+  // Determine text input for extraction
+  let sourceText = req.body.text || req.body.input || requirement.originalDescription || "";
+
+  if (!sourceText.trim() && requirement.uploadedDocumentId) {
+    const doc = await UploadedDocument.findById(requirement.uploadedDocumentId);
+    if (doc) {
+      sourceText = `Uploaded document: ${doc.originalFilename} (Type: ${doc.mimeType}, Size: ${doc.sizeBytes} bytes)`;
+    }
+  }
+
+  if (!sourceText.trim()) {
+    throw new ApiError(
+      400,
+      "Cannot perform AI extraction: Requirement has no description or uploaded document text."
+    );
+  }
+
+  try {
+    const extractedData = await extractRequirement(sourceText, {
+      requirementId: requirement._id,
+      triggeredByUserId: req.user?._id || requirement.createdByUserId,
+      correlationId: req.headers?.["x-correlation-id"],
+    });
+
+    // On success: update extractedFields and transition to NEEDS_REVIEW
+    requirement.extractedFields = extractedData;
+    requirement.uncertainFields = extractedData.uncertainFields || [];
+    requirement.confidenceScore = extractedData.confidenceScore || 0.9;
+    requirement.extractionNotes = extractedData.isDemoExtraction
+      ? "AI extraction completed in deterministic mock mode."
+      : "AI extraction completed successfully.";
+    requirement.status = "NEEDS_REVIEW";
+
+    await requirement.save();
+
+    return res.status(200).json(
+      new APIResponse(
+        200,
+        requirement,
+        "AI requirement extraction succeeded. Requirement is ready for user review."
+      )
+    );
+  } catch (error) {
+    // On failure: update status to FAILED_EXTRACTION to enable immediate manual-entry fallback
+    requirement.status = "FAILED_EXTRACTION";
+    requirement.extractionNotes = `AI extraction failed: ${error.message}`;
+    await requirement.save().catch(() => {});
+
+    throw new ApiError(
+      502,
+      `AI extraction failed: ${error.message}. Requirement status has been set to FAILED_EXTRACTION for manual review and entry.`
+    );
+  }
 });
 
