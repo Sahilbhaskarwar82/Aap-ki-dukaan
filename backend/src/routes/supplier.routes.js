@@ -32,3 +32,4 @@ router.get("/:id", getSupplierById);
 router.get("/", listSuppliers);
 
 export default router;
+

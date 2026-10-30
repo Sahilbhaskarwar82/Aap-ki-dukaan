@@ -114,3 +114,4 @@ supplierSchema.index({ activeStatus: 1, verificationStatus: 1, serviceAreas: 1 }
 
 export const Supplier = mongoose.model("Supplier", supplierSchema);
 export default Supplier;
+
