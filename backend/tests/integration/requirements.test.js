@@ -388,6 +388,10 @@ Thermal POS Paper Rolls,PRINTING,50,ROLL,LUCKNOW,50 rolls/case`;
       // Fails with 400 because there is no content to extract
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
+
+      // Verify status updated in MongoDB to FAILED_EXTRACTION
+      const failedInDb = await Requirement.findById(emptyDoc._id);
+      expect(failedInDb.status).toBe("FAILED_EXTRACTION");
     });
   });
 });

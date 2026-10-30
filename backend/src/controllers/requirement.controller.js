@@ -70,7 +70,7 @@ export const createRequirement = asyncHandler(async (req, res) => {
     extractedFields = {},
     confirmedFields = {},
     status = "DRAFT",
-  } = req.body;
+  } = req.body || {};
 
   const shopId =
     req.user?.shopId ||
@@ -224,7 +224,7 @@ export const updateRequirement = asyncHandler(async (req, res) => {
     extractedFields,
     originalDescription,
     extractionNotes,
-  } = req.body;
+  } = req.body || {};
 
   // 1. Update unconfirmed / extracted fields if provided
   if (extractedFields && typeof extractedFields === "object") {
@@ -388,7 +388,8 @@ export const extractRequirementById = asyncHandler(async (req, res) => {
   }
 
   // Determine text input for extraction
-  let sourceText = req.body.text || req.body.input || requirement.originalDescription || "";
+  const body = req.body || {};
+  let sourceText = body.text || body.input || requirement.originalDescription || "";
 
   if (!sourceText.trim() && requirement.uploadedDocumentId) {
     const doc = await UploadedDocument.findById(requirement.uploadedDocumentId);
@@ -398,6 +399,11 @@ export const extractRequirementById = asyncHandler(async (req, res) => {
   }
 
   if (!sourceText.trim()) {
+    requirement.status = "FAILED_EXTRACTION";
+    requirement.extractionNotes =
+      "Cannot perform AI extraction: Requirement has no description or uploaded document text.";
+    await requirement.save().catch(() => {});
+
     throw new ApiError(
       400,
       "Cannot perform AI extraction: Requirement has no description or uploaded document text."
