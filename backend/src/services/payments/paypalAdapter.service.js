@@ -326,6 +326,69 @@ class PayPalSandboxAdapter {
       rawResponse: data,
     };
   }
+
+  // ── getOrderDetails ─────────────────────────────────────────────────────────
+
+  /**
+   * Retrieves order status and capture details from PayPal.
+   *
+   * @param {string} providerOrderId
+   * @returns {Promise<object>}
+   */
+  async getOrderDetails(providerOrderId) {
+    const { status, data } = await this._request("GET", `/v2/checkout/orders/${providerOrderId}`);
+    if (status !== 200) {
+      throw new Error(`PayPal getOrderDetails failed [${status}]: ${JSON.stringify(data)}`);
+    }
+    return data;
+  }
+
+  // ── verifyWebhookSignature ──────────────────────────────────────────────────
+
+  /**
+   * Cryptographically verifies PayPal webhook headers using PayPal REST API.
+   *
+   * @param {object} params
+   * @param {string} params.authAlgo
+   * @param {string} params.certUrl
+   * @param {string} params.transmissionId
+   * @param {string} params.transmissionSig
+   * @param {string} params.transmissionTime
+   * @param {string} params.webhookId
+   * @param {object} params.eventBody
+   * @returns {Promise<{ verificationStatus: string, raw?: object }>}
+   */
+  async verifyWebhookSignature({
+    authAlgo,
+    certUrl,
+    transmissionId,
+    transmissionSig,
+    transmissionTime,
+    webhookId,
+    eventBody,
+  }) {
+    const payload = {
+      auth_algo: authAlgo,
+      cert_url: certUrl,
+      transmission_id: transmissionId,
+      transmission_sig: transmissionSig,
+      transmission_time: transmissionTime,
+      webhook_id: webhookId,
+      webhook_event: eventBody,
+    };
+
+    const { status, data } = await this._request(
+      "POST",
+      "/v1/notifications/verify-webhook-signature",
+      payload
+    );
+
+    if (status !== 200) {
+      return { verificationStatus: "FAILURE", raw: data };
+    }
+
+    return { verificationStatus: data.verification_status, raw: data };
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -343,6 +406,10 @@ class PayPalSandboxAdapter {
  *   isTestTransaction: true  (enforced on the Payment model)
  */
 class MockDevAdapter {
+  constructor() {
+    this._mockOrders = new Map();
+  }
+
   /**
    * Generates a deterministic mock PayPal order ID.
    * Format: MOCK-ORD-<timestamp>-<random4>
@@ -359,8 +426,17 @@ class MockDevAdapter {
     return `MOCK-REF-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
   }
 
-  async createOrder({ amountMinor, currency, idempotencyKey }) {
+  async createOrder({ amountMinor, currency, idempotencyKey, description }) {
     const providerOrderId = this._mockOrderId();
+    this._mockOrders.set(providerOrderId, {
+      id: providerOrderId,
+      status: "CREATED",
+      amountMinor,
+      currency,
+      idempotencyKey,
+      description,
+      captures: [],
+    });
     return {
       providerOrderId,
       status: "CREATED",
@@ -375,8 +451,14 @@ class MockDevAdapter {
         `MockDevAdapter: unexpected providerOrderId format '${providerOrderId}'.`
       );
     }
+    const captureId = this._mockCaptureId();
+    const existing = this._mockOrders.get(providerOrderId);
+    if (existing) {
+      existing.status = "COMPLETED";
+      existing.captures.push({ id: captureId, status: "COMPLETED" });
+    }
     return {
-      providerCaptureId: this._mockCaptureId(),
+      providerCaptureId: captureId,
       captureStatus: "COMPLETED",
       amountMinor: null, // caller must use the amount they stored at createOrder time
       currency: null,
@@ -392,6 +474,65 @@ class MockDevAdapter {
       currency,
       rawResponse: { _isMock: true, providerCaptureId },
     };
+  }
+
+  async getOrderDetails(providerOrderId) {
+    const existing = this._mockOrders.get(providerOrderId);
+    if (existing) {
+      const status =
+        existing.mockStatus ??
+        (existing.status === "CREATED" ? "COMPLETED" : existing.status);
+      const captures =
+        existing.captures.length > 0
+          ? existing.captures
+          : status === "COMPLETED"
+            ? [{ id: `MOCK-CAP-${existing.id.slice(9) || Date.now()}`, status: "COMPLETED" }]
+            : [];
+
+      return {
+        id: existing.id,
+        status,
+        purchase_units: [
+          {
+            payments: {
+              captures,
+            },
+          },
+        ],
+        _isMock: true,
+      };
+    }
+    // Return COMPLETED mock order if not tracked in map
+    return {
+      id: providerOrderId,
+      status: "COMPLETED",
+      purchase_units: [
+        {
+          payments: {
+            captures: [{ id: `MOCK-CAP-${Date.now()}`, status: "COMPLETED" }],
+          },
+        },
+      ],
+      _isMock: true,
+    };
+  }
+
+  setMockOrderStatus(providerOrderId, status) {
+    const existing = this._mockOrders.get(providerOrderId);
+    if (existing) {
+      existing.mockStatus = status;
+    }
+  }
+
+  async verifyWebhookSignature({ transmissionSig, webhookId }) {
+    const expectedWebhookId = process.env.PAYPAL_WEBHOOK_ID;
+    if (expectedWebhookId && webhookId && webhookId !== expectedWebhookId) {
+      return { verificationStatus: "FAILURE" };
+    }
+    if (!transmissionSig || transmissionSig === "invalid" || transmissionSig === "mock-invalid-sig") {
+      return { verificationStatus: "FAILURE" };
+    }
+    return { verificationStatus: "SUCCESS" };
   }
 }
 

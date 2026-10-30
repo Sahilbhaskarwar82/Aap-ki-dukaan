@@ -13,6 +13,8 @@ import {
   capturePaymentOrder,
   handleCancelledOrFailedCheckout,
   listPaymentsForShop,
+  handlePayPalWebhook,
+  reconcilePaymentState,
 } from "../services/payment.service.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -201,5 +203,40 @@ export const listPayments = asyncHandler(async (req, res) => {
 
   return res.status(200).json(
     new APIResponse(200, result, "Payments retrieved successfully.")
+  );
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/payments/webhook
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Handles incoming PayPal webhooks (SRU-03).
+ * Verifies headers (PAYPAL-TRANSMISSION-SIG, etc.) and processes events idempotently.
+ */
+export const handleWebhook = asyncHandler(async (req, res) => {
+  const result = await handlePayPalWebhook({
+    headers: req.headers,
+    body: req.body,
+  });
+
+  return res.status(200).json(
+    new APIResponse(200, result, "Webhook processed successfully.")
+  );
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/payments/:paymentId/reconcile
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Reconciles unknown or timed-out payment state with the provider (SRU-03).
+ */
+export const reconcilePayment = asyncHandler(async (req, res) => {
+  const { paymentId } = req.params;
+  const result = await reconcilePaymentState(paymentId);
+
+  return res.status(200).json(
+    new APIResponse(200, result, "Payment reconciliation evaluated.")
   );
 });

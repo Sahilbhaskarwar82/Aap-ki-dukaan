@@ -19,6 +19,8 @@ import {
   captureOrder,
   cancelCheckout,
   listPayments,
+  handleWebhook,
+  reconcilePayment,
 } from "../controllers/payment.controller.js";
 
 const router = Router();
@@ -89,5 +91,20 @@ router.post("/:paymentId/cancel", devAuthStub, cancelCheckout);
  * Required roles: SHOP_OWNER, ADMIN, REVIEWER
  */
 router.get("/", devAuthStub, listPayments);
+
+/**
+ * POST /api/payments/webhook
+ *
+ * Cryptographically verifies and idempotently processes PayPal webhooks (SRU-03).
+ * Does NOT require JWT authentication (called directly by PayPal webhook infrastructure).
+ */
+router.post("/webhook", handleWebhook);
+
+/**
+ * POST /api/payments/:paymentId/reconcile
+ *
+ * Reconciles an unknown or pending payment with the payment provider.
+ */
+router.post("/:paymentId/reconcile", devAuthStub, reconcilePayment);
 
 export default router;
