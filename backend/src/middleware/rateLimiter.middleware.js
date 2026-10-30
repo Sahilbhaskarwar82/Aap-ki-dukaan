@@ -59,3 +59,23 @@ export const paymentLimiter = rateLimit({
   },
 });
 
+/**
+ * High-concurrency limiter for flash sales / rapid pool booking attempts.
+ */
+export const tatkalRateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute window
+  max: 10, // limit each IP to 10 requests per window
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: skipInTest,
+  handler: (_req, res) => {
+    res.status(429).json({
+      success: false,
+      statusCode: 429,
+      message: "Too many booking attempts from this IP. Please try again after a minute.",
+      data: null,
+      errors: ["RATE_LIMIT_EXCEEDED"],
+    });
+  },
+});
+

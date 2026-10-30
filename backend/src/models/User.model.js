@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import crypto from "node:crypto";
 import env from "../config/env.js";
 
 const userSchema = new mongoose.Schema(
@@ -10,6 +11,13 @@ const userSchema = new mongoose.Schema(
       required: [true, "Name is required"],
       trim: true,
       maxlength: [120, "Name cannot exceed 120 characters"],
+    },
+    username: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      sparse: true,
+      index: true,
     },
     email: {
       type: String,
@@ -22,6 +30,10 @@ const userSchema = new mongoose.Schema(
     passwordHash: {
       type: String,
       required: [true, "Password is required"],
+      select: false,
+    },
+    refreshToken: {
+      type: String,
       select: false,
     },
     role: {
@@ -37,6 +49,24 @@ const userSchema = new mongoose.Schema(
       default: "ACTIVE",
       required: true,
     },
+    isVerified: {
+      type: Boolean,
+      default: true,
+    },
+    verificationOtp: {
+      type: String,
+      select: false,
+    },
+    verificationOtpExpiry: {
+      type: Date,
+    },
+    forgotPasswordOtp: {
+      type: String,
+      select: false,
+    },
+    forgotPasswordOtpExpiry: {
+      type: Date,
+    },
     lastLoginAt: {
       type: Date,
       default: null,
@@ -44,6 +74,18 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+/**
+ * Virtual password alias that sets passwordHash
+ */
+userSchema
+  .virtual("password")
+  .set(function (val) {
+    this.passwordHash = val;
+  })
+  .get(function () {
+    return this.passwordHash;
+  });
 
 /**
  * Pre-save middleware to automatically hash passwords with bcrypt cost factor 12.
@@ -55,43 +97,77 @@ userSchema.pre("save", async function () {
 });
 
 /**
- * Validates a plain password against the stored bcrypt hash.
+ * Validates a candidate password against the stored bcrypt hash.
  *
  * @param {string} candidatePassword
  * @returns {Promise<boolean>}
  */
-userSchema.methods.comparePassword = async function (candidatePassword) {
+userSchema.methods.isPasswordCorrect = async function (candidatePassword) {
   if (!this.passwordHash) {
     return false;
   }
   return await bcrypt.compare(candidatePassword, this.passwordHash);
 };
 
+// Backwards-compatible alias
+userSchema.methods.comparePassword = userSchema.methods.isPasswordCorrect;
+
 /**
- * Generates a signed JWT authentication token.
+ * Generates an Access Token with user identity and permissions.
  *
  * @returns {string} Signed JWT
  */
-userSchema.methods.generateAuthToken = function () {
+userSchema.methods.generateAccessToken = function () {
   return jwt.sign(
     {
+      _id: this._id,
       userId: this._id.toString(),
-      role: this.role,
       email: this.email,
+      username: this.username || this.name,
+      role: this.role,
     },
-    env.JWT_SECRET,
+    process.env.ACCESS_TOKEN_SECRET || env.ACCESS_TOKEN_SECRET || env.JWT_SECRET,
     {
-      expiresIn: env.JWT_EXPIRY || "7d",
+      expiresIn: process.env.ACCESS_TOKEN_EXPIRY || env.ACCESS_TOKEN_EXPIRY || "1d",
     }
   );
 };
 
 /**
- * Clean serialization excluding passwordHash.
+ * Generates a Refresh Token with user identifier.
+ *
+ * @returns {string} Signed JWT
+ */
+userSchema.methods.generateRefreshToken = function () {
+  return jwt.sign(
+    {
+      _id: this._id,
+      userId: this._id.toString(),
+      tokenId: crypto.randomUUID(),
+    },
+    process.env.REFRESH_TOKEN_SECRET || env.REFRESH_TOKEN_SECRET || env.JWT_SECRET,
+    {
+      expiresIn: process.env.REFRESH_TOKEN_EXPIRY || env.REFRESH_TOKEN_EXPIRY || "10d",
+    }
+  );
+};
+
+/**
+ * Backwards-compatible auth token generator using generateAccessToken.
+ */
+userSchema.methods.generateAuthToken = function () {
+  return this.generateAccessToken();
+};
+
+/**
+ * Clean serialization excluding sensitive fields.
  */
 userSchema.methods.toSafeObject = function () {
   const obj = this.toObject ? this.toObject() : { ...this };
   delete obj.passwordHash;
+  delete obj.refreshToken;
+  delete obj.verificationOtp;
+  delete obj.forgotPasswordOtp;
   return obj;
 };
 

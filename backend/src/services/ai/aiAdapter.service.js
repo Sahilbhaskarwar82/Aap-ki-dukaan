@@ -316,7 +316,9 @@ export async function executeAIWithGuardrails({
     } else if (executionStatus !== "SCHEMA_VALIDATION_FAILED") {
       executionStatus = "PROVIDER_ERROR";
     }
-    safeErrorCode = toSafeErrorCode(error);
+    if (!safeErrorCode) {
+      safeErrorCode = toSafeErrorCode(error);
+    }
     throw error;
   } finally {
     // try/finally guaranteed execution log calculation and persistence

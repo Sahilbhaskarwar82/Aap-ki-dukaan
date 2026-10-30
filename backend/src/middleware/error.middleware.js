@@ -10,6 +10,11 @@ export const errorHandler = (err, req, res, _next) => {
   let message = err.message || "Internal Server Error";
   let errors = err.errors || [];
 
+  // Capture third-party payment/provider descriptions
+  if (err.error && err.error.description) {
+    message = err.error.description;
+  }
+
   // Handle Mongoose Validation Error
   if (err.name === "ValidationError") {
     statusCode = 400;

@@ -3,48 +3,50 @@ import env from "../config/env.js";
 import { User } from "../models/User.model.js";
 import { Shop } from "../models/Shop.model.js";
 import { ApiError } from "../utils/apiError.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 
 /**
- * Extracts and verifies JWT bearer token from Authorization header or cookie.
- * Attaches authenticated user and linked shop (if retailer) to the request object.
+ * Verifies the JSON Web Token to authenticate users and attach user data to the request.
+ * Checks accessToken or token in cookies, or Authorization header Bearer token.
  */
-export const authenticateJWT = async (req, res, next) => {
+export const verifyJWT = asyncHandler(async (req, res, next) => {
   try {
-    let token = null;
-
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-      token = authHeader.split(" ")[1];
-    } else if (req.cookies && req.cookies.token) {
-      token = req.cookies.token;
-    }
+    const token =
+      req.cookies?.accessToken ||
+      req.cookies?.token ||
+      req.header("Authorization")?.replace("Bearer ", "");
 
     if (!token) {
-      return next(new ApiError(401, "Authentication token missing. Please sign in.", ["MISSING_AUTH_TOKEN"]));
+      throw new ApiError(401, "Unauthorised Request\n", ["MISSING_AUTH_TOKEN"]);
     }
 
-    let decoded;
+    let decodedToken;
     try {
-      decoded = jwt.verify(token, env.JWT_SECRET);
+      decodedToken = jwt.verify(
+        token,
+        process.env.ACCESS_TOKEN_SECRET || env.ACCESS_TOKEN_SECRET || env.JWT_SECRET
+      );
     } catch (err) {
       if (err.name === "TokenExpiredError") {
-        return next(new ApiError(401, "Authentication token has expired. Please sign in again.", ["TOKEN_EXPIRED"]));
+        throw new ApiError(401, "Authentication token has expired. Please sign in again.", ["TOKEN_EXPIRED"]);
       }
-      return next(new ApiError(401, "Invalid authentication token.", ["INVALID_TOKEN"]));
+      throw new ApiError(401, "Invalid Access Token\n", ["INVALID_TOKEN"]);
     }
 
-    const user = await User.findById(decoded.userId);
+    const userId = decodedToken._id || decodedToken.userId;
+    const user = await User.findById(userId).select("-passwordHash -refreshToken");
+
     if (!user) {
-      return next(new ApiError(401, "User session not found or user deleted.", ["USER_NOT_FOUND"]));
+      throw new ApiError(401, "Invalid Access Token\n", ["USER_NOT_FOUND"]);
     }
 
     if (user.status === "DISABLED") {
-      return next(new ApiError(403, "Your account has been disabled. Please contact support.", ["ACCOUNT_DISABLED"]));
+      throw new ApiError(403, "Your account has been disabled. Please contact support.", ["ACCOUNT_DISABLED"]);
     }
 
     req.user = user;
 
-    // Pre-populate shop profile if user is a retail shop owner
+    // Attach shop if retailer
     if (user.role === "SHOP_OWNER") {
       const shop = await Shop.findOne({ ownerUserId: user._id });
       req.shop = shop || null;
@@ -52,35 +54,30 @@ export const authenticateJWT = async (req, res, next) => {
 
     next();
   } catch (error) {
-    next(error);
+    throw new ApiError(
+      error.statusCode || 401,
+      error?.message || "Invalid Access Token\n",
+      error.errors || ["INVALID_TOKEN"]
+    );
   }
-};
+});
 
 /**
- * Role-Based Access Control (RBAC) middleware generator.
- * Restricts endpoint to specified roles.
+ * Role-Based Access Control (RBAC) middleware.
+ * Verifies that the authenticated user possesses one of the allowed roles.
  *
- * @param  {...string} allowedRoles - e.g. 'SHOP_OWNER', 'SUPPLIER', 'ADMIN', 'REVIEWER'
+ * @param  {...string} roles - allowed roles (e.g. 'SHOP_OWNER', 'SUPPLIER', 'ADMIN', 'REVIEWER')
  */
-export const requireRoles = (...allowedRoles) => {
-  return (req, res, next) => {
-    if (!req.user) {
-      return next(new ApiError(401, "Unauthenticated request.", ["UNAUTHENTICATED"]));
-    }
-
-    if (!allowedRoles.includes(req.user.role)) {
-      return next(
-        new ApiError(
-          403,
-          `Access forbidden: required role [${allowedRoles.join(", ")}], but current role is [${req.user.role}].`,
-          ["FORBIDDEN_ROLE"]
-        )
-      );
-    }
-
-    next();
-  };
+export const verifyRole = (...roles) => (req, res, next) => {
+  if (!req.user || !roles.includes(req.user.role)) {
+    throw new ApiError(403, "Access denied. Insufficient permissions.", ["FORBIDDEN_ROLE"]);
+  }
+  next();
 };
+
+// Aliases for seamless backward compatibility across existing routes and tests
+export const authenticateJWT = verifyJWT;
+export const requireRoles = verifyRole;
 
 /**
  * Resource Ownership Verification Middleware.
@@ -121,8 +118,9 @@ export const verifyResourceOwnership = (getResourceOwnerId) => {
 };
 
 export default {
+  verifyJWT,
+  verifyRole,
   authenticateJWT,
   requireRoles,
   verifyResourceOwnership,
 };
-

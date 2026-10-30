@@ -232,17 +232,147 @@ describe("Authentication & RBAC Integration Tests (PRK-03)", () => {
   // 4. Logout Tests
   // ───────────────────────────────────────────────────────────────────────────
   describe("POST /api/auth/logout", () => {
-    it("clears authentication cookie", async () => {
+    it("clears authentication cookie and removes refreshToken from database", async () => {
       const reg = await request(app)
         .post("/api/auth/register")
         .send(validShopOwnerPayload);
 
       const res = await request(app)
         .post("/api/auth/logout")
-        .set("Authorization", `Bearer ${reg.body.data.token}`);
+        .set("Authorization", `Bearer ${reg.body.data.accessToken}`);
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
+
+      const user = await User.findOne({ email: "ramesh.gupta@kirana.com" }).select("+refreshToken");
+      expect(user.refreshToken).toBeUndefined();
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 5. Refresh Token Flow
+  // ───────────────────────────────────────────────────────────────────────────
+  describe("POST /api/auth/refresh-token", () => {
+    it("rotates and returns new access and refresh tokens when valid refreshToken is provided", async () => {
+      const reg = await request(app)
+        .post("/api/auth/register")
+        .send(validShopOwnerPayload);
+
+      const oldRefreshToken = reg.body.data.refreshToken;
+      expect(oldRefreshToken).toBeDefined();
+
+      const res = await request(app)
+        .post("/api/auth/refresh-token")
+        .send({ refreshToken: oldRefreshToken });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty("accessToken");
+      expect(res.body.data).toHaveProperty("refreshToken");
+      expect(res.body.data.refreshToken).not.toBe(oldRefreshToken);
+    });
+
+    it("rejects invalid or tampered refresh token with 401", async () => {
+      const res = await request(app)
+        .post("/api/auth/refresh-token")
+        .send({ refreshToken: "invalid.fake.token" });
+
+      expect(res.status).toBe(401);
+      expect(res.body.success).toBe(false);
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 6. Change Password Flow
+  // ───────────────────────────────────────────────────────────────────────────
+  describe("POST /api/auth/change-password", () => {
+    it("changes password successfully when old password is correct", async () => {
+      const reg = await request(app)
+        .post("/api/auth/register")
+        .send(validShopOwnerPayload);
+
+      const token = reg.body.data.accessToken;
+
+      const res = await request(app)
+        .post("/api/auth/change-password")
+        .set("Authorization", `Bearer ${token}`)
+        .send({
+          oldPassword: "SecurePassword123!",
+          newPassword: "BrandNewSecurePassword456!",
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+
+      // Verify login with new password works
+      const loginRes = await request(app)
+        .post("/api/auth/login")
+        .send({
+          email: "ramesh.gupta@kirana.com",
+          password: "BrandNewSecurePassword456!",
+        });
+
+      expect(loginRes.status).toBe(200);
+      expect(loginRes.body.success).toBe(true);
+    });
+
+    it("rejects password change if old password is incorrect", async () => {
+      const reg = await request(app)
+        .post("/api/auth/register")
+        .send(validShopOwnerPayload);
+
+      const res = await request(app)
+        .post("/api/auth/change-password")
+        .set("Authorization", `Bearer ${reg.body.data.accessToken}`)
+        .send({
+          oldPassword: "WrongPassword999!",
+          newPassword: "BrandNewSecurePassword456!",
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toContain("Old password is incorrect");
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 7. Forgot & Reset Password Flow
+  // ───────────────────────────────────────────────────────────────────────────
+  describe("POST /api/auth/forgot-password & /api/auth/reset-password", () => {
+    it("generates OTP and resets password successfully", async () => {
+      await request(app).post("/api/auth/register").send(validShopOwnerPayload);
+
+      const forgotRes = await request(app)
+        .post("/api/auth/forgot-password")
+        .send({ email: "ramesh.gupta@kirana.com" });
+
+      expect(forgotRes.status).toBe(200);
+      expect(forgotRes.body.success).toBe(true);
+
+      // Retrieve generated OTP directly from database to simulate email delivery
+      const user = await User.findOne({ email: "ramesh.gupta@kirana.com" }).select("+forgotPasswordOtp");
+      expect(user.forgotPasswordOtp).toBeDefined();
+
+      const resetRes = await request(app)
+        .post("/api/auth/reset-password")
+        .send({
+          email: "ramesh.gupta@kirana.com",
+          otp: user.forgotPasswordOtp,
+          newPassword: "ResetPasswordSuccess789!",
+        });
+
+      expect(resetRes.status).toBe(200);
+      expect(resetRes.body.success).toBe(true);
+
+      // Verify login with reset password works
+      const loginRes = await request(app)
+        .post("/api/auth/login")
+        .send({
+          email: "ramesh.gupta@kirana.com",
+          password: "ResetPasswordSuccess789!",
+        });
+
+      expect(loginRes.status).toBe(200);
+      expect(loginRes.body.success).toBe(true);
     });
   });
 });

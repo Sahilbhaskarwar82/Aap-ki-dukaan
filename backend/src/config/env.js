@@ -21,6 +21,17 @@ const envSchema = z.object({
     .min(16, "JWT_SECRET must be at least 16 characters long")
     .default("supersecretjwtkeyforlocaldevelopmentonlychangeinprod_min32chars"),
   JWT_EXPIRY: z.string().default("7d"),
+  ACCESS_TOKEN_SECRET: z
+    .string()
+    .min(16)
+    .default(process.env.JWT_SECRET || "supersecretjwtkeyforlocaldevelopmentonlychangeinprod_min32chars"),
+  ACCESS_TOKEN_EXPIRY: z.string().default("1d"),
+  REFRESH_TOKEN_SECRET: z
+    .string()
+    .min(16)
+    .default(process.env.JWT_SECRET || "supersecretjwtkeyforlocaldevelopmentonlychangeinprod_min32chars"),
+  REFRESH_TOKEN_EXPIRY: z.string().default("10d"),
+  REDIS_URL: z.string().optional(),
   POOL_DURATION_HOURS: z
     .string()
     .default("72")
