@@ -47,6 +47,13 @@ const envSchema = z.object({
     .string()
     .default("10")
     .transform((val) => parseInt(val, 10)),
+  AI_API_KEY: z.string().optional().default("mock_ai_api_key"),
+  AI_PROVIDER: z.enum(["gemini", "openai", "mock"]).default("mock"),
+  AI_MODEL: z.string().default("gemini-1.5-flash"),
+  AI_TIMEOUT_MS: z
+    .string()
+    .default("15000")
+    .transform((val) => parseInt(val, 10)),
 });
 
 export const validateEnv = (customEnv = process.env) => {
