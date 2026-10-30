@@ -467,6 +467,12 @@ class MockDevAdapter {
   }
 
   async refundCapture({ providerCaptureId, amountMinor, currency, idempotencyKey }) {
+    if (
+      idempotencyKey?.toLowerCase().includes("fail") ||
+      providerCaptureId?.toLowerCase().includes("fail")
+    ) {
+      throw new Error("Mock PayPal capture refund rejected by provider.");
+    }
     return {
       providerRefundId: this._mockRefundId(),
       refundStatus: "COMPLETED",
