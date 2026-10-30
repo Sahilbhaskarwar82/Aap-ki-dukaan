@@ -7,8 +7,10 @@ import {
   handleUpdateQuantity,
   handleWithdraw,
   handleApproveSnapshot,
+  handleUnderMoqDecision,
+  handleSupplierFeasibility,
 } from "../controllers/pool.controller.js";
-import { authenticateJWT, requireRoles } from "../middleware/auth.middleware.js";
+import { verifyJWT, verifyRole } from "../middleware/auth.middleware.js";
 
 const router = Router();
 
@@ -17,21 +19,46 @@ router.get("/", handleListPools);
 router.get("/:poolId", handleGetPoolDetail);
 
 // Protected mutation endpoints
-router.post("/", authenticateJWT, requireRoles("SHOP_OWNER", "ADMIN", "SUPPLIER"), handleCreatePool);
-router.post("/:poolId/join", authenticateJWT, requireRoles("SHOP_OWNER"), handleJoinPool);
+router.post("/", verifyJWT, verifyRole("SHOP_OWNER", "ADMIN", "SUPPLIER"), handleCreatePool);
+
+// Join pool (supports both /:poolId/join and /:poolId/contributions)
+router.post("/:poolId/join", verifyJWT, verifyRole("SHOP_OWNER"), handleJoinPool);
+router.post("/:poolId/contributions", verifyJWT, verifyRole("SHOP_OWNER"), handleJoinPool);
+
+// Edit contribution quantity
 router.patch(
   "/:poolId/contributions/:contributionId",
-  authenticateJWT,
-  requireRoles("SHOP_OWNER"),
+  verifyJWT,
+  verifyRole("SHOP_OWNER"),
   handleUpdateQuantity
 );
+
+// Withdraw contribution (supports both POST /withdraw and DELETE /:contributionId)
 router.post(
   "/:poolId/contributions/:contributionId/withdraw",
-  authenticateJWT,
-  requireRoles("SHOP_OWNER"),
+  verifyJWT,
+  verifyRole("SHOP_OWNER"),
   handleWithdraw
 );
-router.post("/:poolId/approve", authenticateJWT, requireRoles("SHOP_OWNER"), handleApproveSnapshot);
+router.delete(
+  "/:poolId/contributions/:contributionId",
+  verifyJWT,
+  verifyRole("SHOP_OWNER"),
+  handleWithdraw
+);
+
+// Explicit PriceSnapshot approval
+router.post("/:poolId/approve", verifyJWT, verifyRole("SHOP_OWNER"), handleApproveSnapshot);
+
+// 24h Under-MOQ buyer decision (PROCEED / CANCEL)
+router.post("/:poolId/decision", verifyJWT, verifyRole("SHOP_OWNER"), handleUnderMoqDecision);
+
+// Supplier under-MOQ feasibility resolution
+router.post(
+  "/:poolId/supplier-feasibility",
+  verifyJWT,
+  verifyRole("SUPPLIER", "ADMIN"),
+  handleSupplierFeasibility
+);
 
 export default router;
-
