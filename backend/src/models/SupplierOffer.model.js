@@ -218,3 +218,4 @@ supplierOfferSchema.virtual("computedRetailerStep").get(function () {
 
 export const SupplierOffer = mongoose.model("SupplierOffer", supplierOfferSchema);
 export default SupplierOffer;
+
