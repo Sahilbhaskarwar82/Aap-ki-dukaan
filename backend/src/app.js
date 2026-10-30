@@ -1,62 +1,105 @@
-import express from "express"; //express is a framework for building web applications and APIs
-import cors from "cors"; //cors is a middleware for enabling cross-origin resource sharing
-import cookieParser from "cookie-parser"; //cookie-parser is a middleware for parsing cookies from the request headers
-import compression from "compression";  //compression is a middleware that compresses http responses using algorithms such as gzip/Brotli depending on negotiation
-import helmet from "helmet";    //helmet is a middleware that sets various http headers
-import morgan from "morgan";    //morgan is a middleware that logs http requests to the console
+import express from "express";
+import cors from "cors";
+import cookieParser from "cookie-parser";
+import compression from "compression";
+import helmet from "helmet";
+import morgan from "morgan";
+import mongoose from "mongoose";
 
-// middleware
+import env from "./config/env.js";
+import clockService from "./services/clock/clock.service.js";
+
+// Middleware
 import correlationIdMiddleware from "./middleware/correlationId.middleware.js";
+import { apiLimiter } from "./middleware/rateLimiter.middleware.js";
+import errorHandler from "./middleware/error.middleware.js";
 
-// routes
+// Routes
+import authRouter from "./routes/auth.routes.js";
+import shopRouter from "./routes/shop.routes.js";
+import poolRouter from "./routes/pool.routes.js";
 import paymentRouter from "./routes/payment.routes.js";
 import orderRouter from "./routes/order.routes.js";
 import notificationRouter from "./routes/notification.routes.js";
 
 const app = express();
 
-// Attach UUID X-Correlation-Id to all requests and responses (SRU-09)
+// 1. Attach UUID X-Correlation-Id to all requests and responses (SRU-09)
 app.use(correlationIdMiddleware);
 
-//compress all responses (must be first)
+// 2. Compress HTTP responses (must be early in middleware stack)
 app.use(compression());
 
-//http security headers
-// also it wont manage corp policy
-app.use(helmet({ crossOriginResourcePolicy: false }));
+// 3. Security HTTP headers via Helmet
+app.use(
+  helmet({
+    crossOriginResourcePolicy: false,
+  })
+);
 
-app.use(morgan("dev")); //morgan is a middleware that logs http requests to the console
+// 4. HTTP request logging (except in test mode)
+if (process.env.NODE_ENV !== "test") {
+  app.use(morgan("dev"));
+}
 
-//enable cors
-//frontend can make request from all origins and cookies can be sent to the server
+// 5. CORS restricted to CLIENT_ORIGIN with credentials
 app.use(
   cors({
-    origin: true,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl, health checks) or exact match
+      if (!origin || origin === env.CLIENT_ORIGIN || process.env.NODE_ENV !== "production") {
+        return callback(null, true);
+      }
+      return callback(new Error("Not allowed by CORS policy."));
+    },
     credentials: true,
   })
 );
 
-app.use(express.json({ limit: "16kb" }));  //this middleware parses incoming json helps in destructuring in req.body
-app.use(express.urlencoded({ extended: true, limit: "16kb" }));  //this middleware parses incoming url encoded data  extended=true allows nested objects
+// 6. JSON and URL-encoded body parsing with safe limits
+app.use(express.json({ limit: "16kb" }));
+app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 
-app.use(cookieParser()); //this middleware parses incoming cookies from the browser stores them in req.cookies
+// 7. Cookie parsing
+app.use(cookieParser());
 
-// Mount application routes
+// 8. General API rate limiter
+app.use("/api", apiLimiter);
+
+// 9. Health Check Endpoint (PRK-01)
+app.get("/api/health", (_req, res) => {
+  const dbStatusMap = {
+    0: "DISCONNECTED",
+    1: "CONNECTED",
+    2: "CONNECTING",
+    3: "DISCONNECTING",
+  };
+
+  const dbState = dbStatusMap[mongoose.connection.readyState] || "UNKNOWN";
+
+  return res.status(200).json({
+    statusCode: 200,
+    success: true,
+    message: "Aap Ki Dukan API is healthy",
+    data: {
+      status: "HEALTHY",
+      database: dbState,
+      timestamp: clockService.now().toISOString(),
+      uptimeSeconds: Math.floor(process.uptime()),
+      environment: process.env.NODE_ENV || "development",
+    },
+  });
+});
+
+// 10. Mount application routes
+app.use("/api/auth", authRouter);
+app.use("/api/shops", shopRouter);
+app.use("/api/pools", poolRouter);
 app.use("/api/payments", paymentRouter);
 app.use("/api/orders", orderRouter);
 app.use("/api/notifications", notificationRouter);
 
-// Centralized error handler
-app.use((err, _req, res, _next) => {
-  const statusCode = err.statusCode || 500;
-  const message = err.message || "Internal Server Error";
-  return res.status(statusCode).json({
-    statusCode,
-    data: null,
-    message,
-    success: false,
-    errors: err.errors || [],
-  });
-});
+// 11. Centralized Safe Error Handling Middleware
+app.use(errorHandler);
 
 export default app;

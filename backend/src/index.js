@@ -1,16 +1,30 @@
-import dotenv from "dotenv";
-dotenv.config({path:'./.env'});
+import env from "./config/env.js";
+import connectDB from "./config/db.js";
+import app from "./app.js";
 
-import connectDB from "./db/index.js"
-import app from "./app.js"
+const startServer = async () => {
+  try {
+    await connectDB();
+    const port = env.PORT || 8000;
 
-connectDB()
-.then(()=>{
-    let port=process.env.PORT||8000; //port is set to 8000 if process.env.PORT is not defined
-    app.listen(port,()=>{
-        console.log(`Server running at port ${port}\n`);  //server is started on the specified port
-    })
-})
-.catch((err)=>{
-    console.log(err);
-})
+    const server = app.listen(port, () => {
+      console.log(`🚀 Aap Ki Dukan API server listening on port ${port} [env=${env.NODE_ENV}]`);
+    });
+
+    const shutdown = async (signal) => {
+      console.log(`\nReceived ${signal}. Gracefully shutting down...`);
+      server.close(() => {
+        console.log("HTTP server closed.");
+        process.exit(0);
+      });
+    };
+
+    process.on("SIGTERM", () => shutdown("SIGTERM"));
+    process.on("SIGINT", () => shutdown("SIGINT"));
+  } catch (err) {
+    console.error("FATAL: Failed to start server:", err);
+    process.exit(1);
+  }
+};
+
+startServer();
