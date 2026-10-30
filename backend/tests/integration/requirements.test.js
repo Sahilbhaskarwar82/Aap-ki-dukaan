@@ -5,6 +5,7 @@ import request from "supertest";
 import express from "express";
 
 import { Requirement } from "../../src/models/Requirement.model.js";
+import "../../src/models/UploadedDocument.model.js";
 import requirementRouter from "../../src/routes/requirement.routes.js";
 
 let mongoServer;
@@ -345,3 +346,4 @@ Thermal POS Paper Rolls,PRINTING,50,ROLL,LUCKNOW,50 rolls/case`;
     });
   });
 });
+

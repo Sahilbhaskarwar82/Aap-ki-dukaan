@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import mongoose from "mongoose";
 import { Requirement } from "../models/Requirement.model.js";
+import { UploadedDocument } from "../models/UploadedDocument.model.js";
 import { parseRequirementCsv } from "../utils/csvParser.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { APIResponse } from "../utils/apiResponse.js";
@@ -359,3 +360,4 @@ export const importCsvRequirements = asyncHandler(async (req, res) => {
     )
   );
 });
+

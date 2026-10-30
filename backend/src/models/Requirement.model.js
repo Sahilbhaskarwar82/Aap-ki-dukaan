@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import "./UploadedDocument.model.js";
 
 /**
  * Task SAH-02: Requirement Model
@@ -145,3 +146,4 @@ requirementSchema.index({ shopId: 1, status: 1, createdAt: -1 });
 
 export const Requirement = mongoose.model("Requirement", requirementSchema);
 export default Requirement;
+
