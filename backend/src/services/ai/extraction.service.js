@@ -172,11 +172,11 @@ export async function extractRequirement(input, options = {}) {
  * @returns {Promise<z.infer<typeof normalizedProductSchema>>}
  */
 export async function normalizeProduct(description, attributes = {}, options = {}) {
-  const rawInput = `${description || ""}\n\nAttributes: ${JSON.stringify(attributes)}`;
-
-  if (!rawInput.trim()) {
+  if (!description || typeof description !== "string" || !description.trim()) {
     throw new Error("Product description for normalization cannot be empty.");
   }
+
+  const rawInput = `${description.trim()}\n\nAttributes: ${JSON.stringify(attributes || {})}`;
 
   return executeAIWithGuardrails({
     operation: "NORMALIZE_PRODUCT",
@@ -199,3 +199,4 @@ export default {
   extractRequirement,
   normalizeProduct,
 };
+
