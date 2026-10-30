@@ -24,6 +24,7 @@ import orderRouter from "./routes/order.routes.js";
 import notificationRouter from "./routes/notification.routes.js";
 import uploadRouter from "./routes/upload.routes.js";
 import supplierRouter, { productRouter, offerRouter } from "./routes/supplier.routes.js";
+import requirementRouter from "./routes/requirement.routes.js";
 
 const app = express();
 
@@ -106,6 +107,7 @@ app.use("/api/uploads", uploadRouter);
 app.use("/api/suppliers", supplierRouter);
 app.use("/api/products", productRouter);
 app.use("/api/offers", offerRouter);
+app.use("/api/requirements", requirementRouter);
 
 // 11. Centralized Safe Error Handling Middleware
 app.use(errorHandler);
