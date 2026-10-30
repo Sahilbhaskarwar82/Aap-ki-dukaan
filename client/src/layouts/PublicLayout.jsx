@@ -2,19 +2,15 @@ import React, { useState } from 'react';
 import {
   Search,
   MapPin,
-  ShoppingCart,
-  Building2,
-  ChevronDown,
-  ShieldCheck,
-  Flame,
   Menu,
   X,
-  Layers,
   Sparkles,
+  ShieldCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Toaster, toast } from '@/components/ui/Toast';
+import { useOptionalAuth } from '@/context/AuthContext';
 
 export function PublicLayout({
   children,
@@ -24,8 +20,51 @@ export function PublicLayout({
   searchQuery,
   setSearchQuery,
   location = 'Lucknow 226001',
+  onNavigateToLogin,
+  onNavigateToRegister,
+  onNavigate,
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const authContext = useOptionalAuth();
+  const user = authContext?.user;
+  const isAuthenticated = !!authContext?.isAuthenticated;
+
+  const handleDashboard = () => {
+    const roleHome =
+      user?.role === 'SUPPLIER'
+        ? '/supplier-portal'
+        : user?.role === 'ADMIN' || user?.role === 'REVIEWER'
+        ? '/admin'
+        : '/dashboard';
+
+    if (typeof onNavigate === 'function') {
+      onNavigate(roleHome);
+    } else if (typeof onNavigateToLogin === 'function') {
+      onNavigateToLogin();
+    } else if (typeof window !== 'undefined') {
+      window.location.href = roleHome;
+    }
+  };
+
+  const handleSignIn = () => {
+    if (typeof onNavigateToLogin === 'function') {
+      onNavigateToLogin();
+    } else if (typeof onNavigate === 'function') {
+      onNavigate('/login');
+    } else if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    }
+  };
+
+  const handleRegister = () => {
+    if (typeof onNavigateToRegister === 'function') {
+      onNavigateToRegister();
+    } else if (typeof onNavigate === 'function') {
+      onNavigate('/register');
+    } else if (typeof window !== 'undefined') {
+      window.location.href = '/register';
+    }
+  };
 
   const categories = [
     { id: 'all', label: 'All Categories' },
@@ -122,22 +161,38 @@ export function PublicLayout({
                 <span>How It Works</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => toast.info('Business Sign In will connect with Prakhar’s JWT Auth')}
-                className="text-xs font-medium text-midnight-muted hover:text-white px-2 py-1.5 transition-colors cursor-pointer hidden sm:block"
-              >
-                Sign In
-              </button>
+              {isAuthenticated && user ? (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="font-semibold text-xs"
+                  onClick={handleDashboard}
+                  aria-label="Open Dashboard"
+                >
+                  Dashboard
+                </Button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleSignIn}
+                    className="text-xs font-medium text-midnight-muted hover:text-white px-2 py-1.5 transition-colors cursor-pointer hidden sm:block"
+                    aria-label="Sign in"
+                  >
+                    Sign In
+                  </button>
 
-              <Button
-                variant="primary"
-                size="sm"
-                className="font-semibold text-xs"
-                onClick={() => toast.success('Registration module available in Wave 2')}
-              >
-                Register Business
-              </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="font-semibold text-xs"
+                    onClick={handleRegister}
+                    aria-label="Register business"
+                  >
+                    Register Business
+                  </Button>
+                </>
+              )}
 
               {/* Mobile menu button */}
               <button
@@ -150,6 +205,65 @@ export function PublicLayout({
               </button>
             </div>
           </div>
+
+          {/* Mobile navigation panel */}
+          {mobileMenuOpen && (
+            <div
+              role="region"
+              aria-label="Mobile menu"
+              className="sm:hidden border-t border-midnight-border/60 bg-midnight-card/95 py-3 px-2 space-y-2"
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  if (onOpenHowItWorks) onOpenHowItWorks();
+                }}
+                className="w-full text-left text-xs font-medium text-slate-300 hover:text-white py-1.5 px-2 flex items-center gap-1.5 rounded hover:bg-midnight-surface"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-midnight-gold" />
+                <span>How It Works</span>
+              </button>
+              {isAuthenticated && user ? (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="w-full font-semibold text-xs justify-center"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    handleDashboard();
+                  }}
+                  aria-label="Open Dashboard"
+                >
+                  Return to Dashboard
+                </Button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      handleSignIn();
+                    }}
+                    className="w-full text-left text-xs font-medium text-midnight-muted hover:text-white py-1.5 px-2 rounded hover:bg-midnight-surface"
+                  >
+                    Sign In
+                  </button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="w-full font-semibold text-xs justify-center"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      handleRegister();
+                    }}
+                  >
+                    Register Business
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
 
           {/* Mobile Search input */}
           <div className="sm:hidden pb-3 pt-1">
