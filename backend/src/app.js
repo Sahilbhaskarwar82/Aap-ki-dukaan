@@ -21,6 +21,7 @@ import poolRouter from "./routes/pool.routes.js";
 import paymentRouter from "./routes/payment.routes.js";
 import orderRouter from "./routes/order.routes.js";
 import notificationRouter from "./routes/notification.routes.js";
+import uploadRouter from "./routes/upload.routes.js";
 
 const app = express();
 
@@ -98,6 +99,7 @@ app.use("/api/pools", poolRouter);
 app.use("/api/payments", paymentRouter);
 app.use("/api/orders", orderRouter);
 app.use("/api/notifications", notificationRouter);
+app.use("/api/uploads", uploadRouter);
 
 // 11. Centralized Safe Error Handling Middleware
 app.use(errorHandler);

@@ -32,6 +32,12 @@ backend/.env.*
 coverage/
 .nyc_output/
 
+# Uploads
+private_uploads/
+backend/private_uploads/
+public/temp/*
+!public/temp/.gitkeep
+
 # Skills and agent artifacts
 skills/
 skills-lock.json
