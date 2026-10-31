@@ -142,6 +142,7 @@ describe("Custom & Revised Supplier Quote Workflow Integration Tests (SAH-09)", 
       supplierId: supplierDoc._id,
       productId: productDoc._id,
       packUnit: "BOX",
+      packSize: "1000 cups / box",
       currency: "INR",
       baseUnitPriceMinor: 10000,
       minimumOrderQuantity: 50,
@@ -518,3 +519,4 @@ describe("Custom & Revised Supplier Quote Workflow Integration Tests (SAH-09)", 
     });
   });
 });
+
