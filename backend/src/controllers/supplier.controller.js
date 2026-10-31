@@ -2,6 +2,9 @@ import mongoose from "mongoose";
 import { Supplier } from "../models/Supplier.model.js";
 import { Product } from "../models/Product.model.js";
 import { SupplierOffer } from "../models/SupplierOffer.model.js";
+import { Requirement } from "../models/Requirement.model.js";
+import { compareOffersDeterministically } from "../services/supplierSearch/catalogue.service.js";
+import { summarizeQuotes } from "../services/ai/advisory.service.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { APIResponse } from "../utils/apiResponse.js";
 import { ApiError } from "../utils/apiError.js";
@@ -233,6 +236,90 @@ export const searchOffers = asyncHandler(async (req, res) => {
         },
       },
       "Supplier offers matching search criteria retrieved successfully."
+    )
+  );
+});
+
+/**
+ * Task SAH-07: POST /api/offers/compare
+ *
+ * Compares candidate supplier offers deterministically (integer minor units,
+ * exact tier selection, shipping, Two-Level MOQ feasibility, cost flags),
+ * and generates an AI trade-off summary strictly grounded in the backend figures.
+ */
+export const compareOffers = asyncHandler(async (req, res) => {
+  const { requirement, requirementId, offerIds, requestedQuantity, deliveryArea } = req.body || {};
+
+  let reqDoc = requirement;
+
+  if (!reqDoc && requirementId) {
+    if (!mongoose.Types.ObjectId.isValid(requirementId)) {
+      throw new ApiError(400, "Invalid requirement ID format.");
+    }
+    reqDoc = await Requirement.findById(requirementId).lean();
+    if (!reqDoc) {
+      throw new ApiError(404, "Requirement record not found.");
+    }
+  }
+
+  if (!reqDoc) {
+    const qty = Number(requestedQuantity);
+    if (!qty || isNaN(qty) || qty <= 0) {
+      throw new ApiError(400, "Valid requirement, requirementId, or positive requestedQuantity is required.");
+    }
+    reqDoc = {
+      confirmedFields: {
+        requestedQuantity: qty,
+        deliveryArea: deliveryArea || "DELHI_NCR",
+      },
+    };
+  }
+
+  let offers = [];
+
+  if (Array.isArray(offerIds) && offerIds.length > 0) {
+    const validIds = offerIds
+      .filter((id) => mongoose.Types.ObjectId.isValid(id))
+      .map((id) => new mongoose.Types.ObjectId(id));
+
+    offers = await SupplierOffer.find({ _id: { $in: validIds } })
+      .populate("supplierId", "name contactReference serviceAreas verificationStatus")
+      .populate("productId", "canonicalName category baseUnit packSizeDescription specifications")
+      .lean();
+  } else {
+    const targetArea =
+      reqDoc.confirmedFields?.deliveryArea ||
+      reqDoc.deliveryArea ||
+      reqDoc.extractedFields?.deliveryArea;
+
+    const filter = { isActive: true, expiresAt: { $gt: new Date() } };
+
+    if (targetArea) {
+      filter.deliveryAreas = { $in: [targetArea.toUpperCase().trim(), "ALL_INDIA"] };
+    }
+
+    offers = await SupplierOffer.find(filter)
+      .populate("supplierId", "name contactReference serviceAreas verificationStatus")
+      .populate("productId", "canonicalName category baseUnit packSizeDescription specifications")
+      .sort({ baseUnitPriceMinor: 1 })
+      .limit(10)
+      .lean();
+  }
+
+  // 1. Authoritative deterministic mathematical evaluation
+  const comparison = compareOffersDeterministically(reqDoc, offers);
+
+  // 2. AI Quote trade-off summarizer (zero-math hallucination)
+  const summary = await summarizeQuotes(comparison);
+
+  return res.status(200).json(
+    new APIResponse(
+      200,
+      {
+        comparison,
+        summary,
+      },
+      "Supplier offers compared and summarized successfully."
     )
   );
 });
