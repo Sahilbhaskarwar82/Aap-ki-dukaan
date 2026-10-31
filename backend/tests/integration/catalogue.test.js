@@ -255,5 +255,68 @@ describe("Supplier Catalogue Models & Search APIs Integration Tests (SAH-05)", (
       expect(offerDoc.computedRetailerStep).toBe(5);
     });
   });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 4. Deterministic Landed-Cost Offer Comparison API (POST /api/offers/compare) (SAH-07)
+  // ───────────────────────────────────────────────────────────────────────────
+  describe("Offer Comparison API (POST /api/offers/compare - SAH-07)", () => {
+    it("compares active offers for a given requestedQuantity & deliveryArea and returns deterministic landed costs + AI summary", async () => {
+      const res = await request(app)
+        .post("/api/offers/compare")
+        .send({
+          requestedQuantity: 50,
+          deliveryArea: "DELHI_NCR",
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.comparison).toBeDefined();
+      expect(res.body.data.summary).toBeDefined();
+
+      const comparison = res.body.data.comparison;
+      expect(comparison.requestedQuantity).toBe(50);
+      expect(comparison.comparisons.length).toBeGreaterThanOrEqual(1);
+
+      // Active offer check: 50 units @ tier 3 (8000 paise) + 50000 paise shipping = 450,000 paise (₹4500.00)
+      const topOffer = comparison.comparisons[0];
+      expect(topOffer.appliedUnitPriceMinor).toBe(8000);
+      expect(topOffer.merchandiseTotalMinor).toBe(400000);
+      expect(topOffer.shippingCostMinor).toBe(50000);
+      expect(topOffer.knownLandedCostMinor).toBe(450000);
+      expect(topOffer.costFlags).toContain("GST_EXCLUDED");
+      expect(topOffer.costFlags).toContain("FLAT_SHIPPING_CONFIRMED");
+
+      // AI Summary check: numbers match verbatim
+      const summary = res.body.data.summary;
+      expect(summary.recommendedOfferId).toBe(comparison.bestOfferId);
+      expect(summary.groundedFigures.lowestUnitPriceMinor).toBe(topOffer.appliedUnitPriceMinor);
+      expect(summary.groundedFigures.bestLandedCostMinor).toBe(topOffer.knownLandedCostMinor);
+      expect(summary.headline).toMatch(/Bharat EcoPack Wholesalers/i);
+    });
+
+    it("compares specific offer IDs when offerIds array is provided", async () => {
+      const res = await request(app)
+        .post("/api/offers/compare")
+        .send({
+          requestedQuantity: 20,
+          offerIds: [activeOffer._id.toString()],
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.comparison.totalOffersCompared).toBe(1);
+      expect(res.body.data.comparison.comparisons[0].appliedUnitPriceMinor).toBe(10000); // 20 units -> tier 1: 10000 paise
+    });
+
+    it("returns 400 Bad Request when requestedQuantity is missing or non-positive", async () => {
+      const res = await request(app)
+        .post("/api/offers/compare")
+        .send({
+          requestedQuantity: 0,
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+    });
+  });
 });
 

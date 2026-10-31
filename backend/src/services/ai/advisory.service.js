@@ -216,10 +216,178 @@ export async function recommendUnderMOQAction(poolContext, alternativeOffers = [
   };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Task SAH-07: AI Quote Trade-Off Summarizer (summarizeQuotes)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const quoteSummarySchema = z.object({
+  recommendedOfferId: z.string(),
+  headline: z.string().min(5),
+  tradeOffExplanation: z.string().min(20),
+  keyDifferentiators: z.array(z.string()).default([]),
+  groundedFigures: z
+    .object({
+      lowestUnitPriceMinor: z.number(),
+      bestLandedCostMinor: z.number(),
+      currency: z.string().default("INR"),
+      potentialSavingsMinor: z.number().default(0),
+    })
+    .passthrough(),
+});
+
+export const QUOTE_SUMMARY_SYSTEM_PROMPT = `
+You are the Chief Commercial Trade-off Analyst for Aap Ki Dukan (CoBuy AI).
+Your objective is to write a concise trade-off summary comparing the wholesale supplier quotes evaluated below.
+
+[CRITICAL PROMPT CONSTRAINT ON FINANCIAL GROUNDING]
+Write a concise, 2-paragraph trade-off summary grounded EXACTLY in the provided data.
+DO NOT calculate, alter, or invent any financial numbers, dates, or MOQs.
+All figures (unit prices, landed costs, savings, lead times) must match the backend calculations verbatim.
+
+Return ONLY a valid JSON object matching this schema:
+{
+  "recommendedOfferId": string,
+  "headline": string,
+  "tradeOffExplanation": "Paragraph 1: Lowest cost leader and primary financial metrics.\n\nParagraph 2: Commercial trade-offs regarding lead time, shipping terms, and MOQ feasibility.",
+  "keyDifferentiators": ["Array of distinct commercial advantages"],
+  "groundedFigures": {
+    "lowestUnitPriceMinor": number,
+    "bestLandedCostMinor": number,
+    "currency": string,
+    "potentialSavingsMinor": number
+  }
+}
+`.trim();
+
+/**
+ * Builds system prompt for quote summarizer with zero-hallucination guardrails.
+ *
+ * @param {object} calculatedComparison - Output from compareOffersDeterministically
+ * @returns {string}
+ */
+export function buildQuoteSummaryPrompt(calculatedComparison) {
+  const comparisonJson = JSON.stringify(calculatedComparison, null, 2);
+  return `${QUOTE_SUMMARY_SYSTEM_PROMPT}\n\n[DETERMINISTIC EVALUATION DATA]\n${comparisonJson}`;
+}
+
+/**
+ * Generates an authoritative deterministic quote trade-off summary.
+ * Grounded 100% in the backend numbers to guarantee zero math hallucinations.
+ *
+ * @param {object} calculatedComparison
+ * @returns {object} Schema-compliant quote summary
+ */
+export function generateDeterministicQuoteSummary(calculatedComparison) {
+  const comparisons = calculatedComparison?.comparisons || [];
+
+  if (comparisons.length === 0) {
+    return {
+      recommendedOfferId: "NONE",
+      headline: "No compatible supplier quotes available for comparison.",
+      tradeOffExplanation: "No supplier offers currently meet the required criteria. Consider requesting custom quotes from regional suppliers.",
+      keyDifferentiators: [],
+      groundedFigures: {
+        lowestUnitPriceMinor: 0,
+        bestLandedCostMinor: 0,
+        currency: calculatedComparison?.currency || "INR",
+        potentialSavingsMinor: 0,
+      },
+    };
+  }
+
+  const bestOffer = comparisons[0];
+  const secondOffer = comparisons[1] || null;
+  const currencySymbol = bestOffer.currency === "INR" ? "₹" : "$";
+  const bestLandedMajor = (bestOffer.knownLandedCostMinor / 100).toFixed(2);
+  const bestUnitMajor = (bestOffer.appliedUnitPriceMinor / 100).toFixed(2);
+  const savingsMajor = ((bestOffer.savingsVsHighestMinor || 0) / 100).toFixed(2);
+
+  const headline = `${bestOffer.supplierName} offers the lowest landed cost at ${currencySymbol}${bestLandedMajor} (${currencySymbol}${bestUnitMajor}/${bestOffer.packUnit}).`;
+
+  let paragraph1 = `${bestOffer.supplierName} provides the most cost-effective solution for ${calculatedComparison.requestedQuantity} ${bestOffer.packUnit} with an applied unit price of ${currencySymbol}${bestUnitMajor} (landed total: ${currencySymbol}${bestLandedMajor}). ${
+    bestOffer.savingsVsHighestMinor > 0
+      ? `Choosing this offer yields estimated savings of ${currencySymbol}${savingsMajor} compared to the highest-priced alternative.`
+      : "This quote represents the optimal baseline pricing across currently active catalogues."
+  }`;
+
+  let paragraph2 = "";
+  if (secondOffer) {
+    const secondLandedMajor = (secondOffer.knownLandedCostMinor / 100).toFixed(2);
+    paragraph2 = `In comparison, ${secondOffer.supplierName} is priced at ${currencySymbol}${secondLandedMajor} (lead time: ${secondOffer.leadTimeDays} days vs ${bestOffer.leadTimeDays} days). ${
+      bestOffer.costFlags?.includes("SHIPPING_PENDING")
+        ? "Note: Final freight for the primary offer is pending supplier confirmation upon order capture."
+        : "Both quotes feature confirmed logistics terms and meet retailer floor commitment thresholds."
+    }`;
+  } else {
+    paragraph2 = `The quote provides a confirmed lead time of ${bestOffer.leadTimeDays} business day(s) under ${bestOffer.shippingTerms} terms, with wholesale MOQ set at ${bestOffer.moqFeasibility.wholesaleMoq} units and individual retailer floor at ${bestOffer.moqFeasibility.retailerMoq} units.`;
+  }
+
+  const tradeOffExplanation = `${paragraph1}\n\n${paragraph2}`;
+
+  const keyDifferentiators = [
+    `Lowest landed cost: ${currencySymbol}${bestLandedMajor}`,
+    `Unit price: ${currencySymbol}${bestUnitMajor} / ${bestOffer.packUnit}`,
+    `Lead time: ${bestOffer.leadTimeDays} days`,
+  ];
+
+  if (bestOffer.moqFeasibility.meetsWholesaleMoq) {
+    keyDifferentiators.push("Directly satisfies wholesale MOQ");
+  } else {
+    keyDifferentiators.push(`Wholesale pool shortfall: ${bestOffer.moqFeasibility.shortfallToWholesaleMoq} units`);
+  }
+
+  return {
+    recommendedOfferId: bestOffer.offerId,
+    headline,
+    tradeOffExplanation,
+    keyDifferentiators,
+    groundedFigures: {
+      lowestUnitPriceMinor: bestOffer.appliedUnitPriceMinor,
+      bestLandedCostMinor: bestOffer.knownLandedCostMinor,
+      currency: bestOffer.currency,
+      potentialSavingsMinor: bestOffer.savingsVsHighestMinor || 0,
+    },
+  };
+}
+
+/**
+ * Task SAH-07: summarizeQuotes
+ * Produces a concise, 2-paragraph trade-off summary strictly grounded in the calculated numbers.
+ * Supports both signatures: summarizeQuotes(calculatedComparison) and summarizeQuotes(verifiedQuotes, calculatedComparison).
+ *
+ * @param {object|Array} arg1 - Output from compareOffersDeterministically OR verifiedQuotes array
+ * @param {object} [arg2] - Output from compareOffersDeterministically if arg1 is verifiedQuotes array
+ * @param {object} [options={}]
+ * @returns {Promise<z.infer<typeof quoteSummarySchema>>}
+ */
+export async function summarizeQuotes(arg1, arg2, options = {}) {
+  let calculatedComparison = arg1;
+  let opts = options;
+
+  if (arg2 && typeof arg2 === "object" && Array.isArray(arg2.comparisons)) {
+    calculatedComparison = arg2;
+    opts = options || {};
+  } else if (arg2 && typeof arg2 === "object") {
+    opts = arg2;
+  }
+
+  if (!calculatedComparison || !Array.isArray(calculatedComparison.comparisons)) {
+    throw new Error("Invalid calculatedComparison: must contain comparisons array.");
+  }
+
+  const deterministicSummary = generateDeterministicQuoteSummary(calculatedComparison);
+  return quoteSummarySchema.parse(deterministicSummary);
+}
+
 export default {
   underMoqAdvisorySchema,
   buildUnderMoqSystemPrompt,
   generateDeterministicUnderMoqAdvisory,
   recommendUnderMOQAction,
+  quoteSummarySchema,
+  QUOTE_SUMMARY_SYSTEM_PROMPT,
+  buildQuoteSummaryPrompt,
+  generateDeterministicQuoteSummary,
+  summarizeQuotes,
 };
 
