@@ -30,11 +30,16 @@ export function compareOffersDeterministically(requirement, offers = []) {
   }
 
   const reqFields = requirement.confirmedFields || requirement;
-  const requestedQuantity = Number(
-    reqFields.requestedQuantity || requirement.requestedQuantity || 1
-  );
+  const rawQuantity =
+    reqFields.requestedQuantity !== undefined
+      ? reqFields.requestedQuantity
+      : requirement.requestedQuantity !== undefined
+      ? requirement.requestedQuantity
+      : 1;
 
-  if (isNaN(requestedQuantity) || requestedQuantity <= 0) {
+  const requestedQuantity = Number(rawQuantity);
+
+  if (isNaN(requestedQuantity) || requestedQuantity <= 0 || !Number.isInteger(requestedQuantity)) {
     throw new ApiError(400, "Requested quantity must be a positive integer.");
   }
 
@@ -176,3 +181,4 @@ export function compareOffersDeterministically(requirement, offers = []) {
 export default {
   compareOffersDeterministically,
 };
+
