@@ -7,6 +7,8 @@ import {
   verifyOrderAuthorization,
   getSupplierSettlement,
   updateSupplierSettlement,
+  createFinalOrderFromFundedPool,
+  updateSupplierStatus,
 } from "../services/orders/order.service.js";
 import { getOrderActivityTimeline } from "../services/notifications/audit.service.js";
 
@@ -169,5 +171,42 @@ export const listOrders = asyncHandler(async (req, res) => {
 
   return res.status(200).json(
     new APIResponse(200, orders, "Orders retrieved successfully.")
+  );
+});
+
+/**
+ * Task SRU-05: PATCH /api/orders/:id/supplier-status
+ * Wholesaler or Admin confirms, rejects, or updates delivery status.
+ */
+export const patchSupplierStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const updatePayload = req.body;
+
+  const updatedOrder = await updateSupplierStatus(id, updatePayload, req.user);
+
+  return res.status(200).json(
+    new APIResponse(
+      200,
+      updatedOrder,
+      "Order supplier status updated successfully."
+    )
+  );
+});
+
+/**
+ * Task SRU-05: POST /api/orders/from-pool/:poolId
+ * Manually or programmatically finalize order from a funded pool.
+ */
+export const createOrderFromPool = asyncHandler(async (req, res) => {
+  const { poolId } = req.params;
+
+  const order = await createFinalOrderFromFundedPool(poolId);
+
+  return res.status(201).json(
+    new APIResponse(
+      201,
+      order,
+      "Final bulk order created successfully from funded pool."
+    )
   );
 });

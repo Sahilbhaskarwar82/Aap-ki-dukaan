@@ -4,6 +4,50 @@ import { Payment } from "../../models/Payment.model.js";
 import { SupplierSettlement } from "../../models/SupplierSettlement.model.js";
 import { ApiError } from "../../utils/apiError.js";
 import { toDecimalString } from "../payments/paypalAdapter.service.js";
+import { initiateRefund } from "../refunds/refund.service.js";
+
+async function safeLogAudit(event) {
+  try {
+    const mod = await import("../notifications/audit.service.js").catch(() => null);
+    if (mod?.logEvent) {
+      await mod.logEvent(event);
+    }
+  } catch (_ignored) {}
+}
+
+async function safeSendNotification(params) {
+  try {
+    const mod = await import("../notifications/notification.service.js").catch(() => null);
+    if (mod?.createNotification) {
+      await mod.createNotification(params);
+    }
+  } catch (_ignored) {}
+}
+
+/**
+ * Generates next sequential Order Number in format "AKD-2026-XXXX".
+ */
+export async function generateNextOrderNumber(session = null) {
+  const currentYear = new Date().getFullYear();
+  const prefix = `AKD-${currentYear}-`;
+  const count = await Order.countDocuments(
+    { orderNumber: new RegExp(`^${prefix}`) },
+    session ? { session } : {}
+  );
+  let nextSeq = count + 1;
+  while (true) {
+    const candidate = `${prefix}${String(nextSeq).padStart(4, "0")}`;
+    const exists = await Order.findOne(
+      { orderNumber: candidate },
+      null,
+      session ? { session } : {}
+    );
+    if (!exists) {
+      return candidate;
+    }
+    nextSeq++;
+  }
+}
 
 /**
  * Format currency minor units to human-readable string (e.g. 480000 paise -> "₹4,800.00").
@@ -732,6 +776,518 @@ export async function updateSupplierSettlement(orderId, updates = {}, requesting
   return settlement;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Task SRU-05: Order Creation & Fulfilment Lifecycle Service
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Task SRU-05: Final Order Creation from Funded Pool.
+ *
+ * Verifies:
+ *  - Pool exists and has active contributions.
+ *  - All active contributions are explicitly APPROVED (approvalStatus === 'APPROVED').
+ *  - All active contributions are fully PAID (totalPaidMinor >= finalTotalPayableMinor).
+ *  - Freezes snapshot breakdown into immutable Order.memberOrders allocations.
+ *  - Generates unique orderNumber (AKD-2026-XXXX).
+ *  - Sets supplierConfirmationStatus: 'PENDING', isSimulatedConfirmation: true, orderState: 'AWAITING_SUPPLIER_CONFIRMATION'.
+ *  - Transitions GroupBuyPool to 'ORDERED' and Contributions to 'FINALIZED'.
+ *  - Initializes separate SupplierSettlement record in SIMULATED / DEMO mode.
+ *  - Logs AuditLog and dispatches in-app notifications.
+ *
+ * @param {string|mongoose.Types.ObjectId} poolId
+ * @param {mongoose.ClientSession} [session]
+ * @returns {Promise<mongoose.Document>}
+ */
+export async function createFinalOrderFromFundedPool(poolId, session = null) {
+  if (!poolId) {
+    throw new ApiError(400, "poolId is required to create final order.");
+  }
+
+  // 1. Check if Order already exists for this pool (Idempotency)
+  const existingOrder = await Order.findOne({ poolId }, null, session ? { session } : {});
+  if (existingOrder) {
+    return existingOrder;
+  }
+
+  // 2. Fetch GroupBuyPool
+  const GroupBuyPool = mongoose.models.GroupBuyPool || mongoose.model("GroupBuyPool");
+  const poolQuery = GroupBuyPool.findById(poolId);
+  if (session) poolQuery.session(session);
+  const pool = await poolQuery;
+
+  if (!pool) {
+    throw new ApiError(404, `GroupBuyPool not found with identifier: ${poolId}`);
+  }
+
+  // 3. Fetch active contributions
+  const Contribution = mongoose.models.Contribution || mongoose.model("Contribution");
+  const contribQuery = Contribution.find({
+    poolId,
+    state: { $in: ["ACTIVE", "PENDING_PAYMENT", "FINALIZED"] },
+  }).populate("shopId");
+  if (session) contribQuery.session(session);
+  const contributions = await contribQuery;
+
+  if (!contributions || contributions.length === 0) {
+    throw new ApiError(400, "Cannot finalize order: pool has no active contributions.");
+  }
+
+  // 4. Verify that all active contributions are APPROVED and fully PAID
+  for (const contrib of contributions) {
+    if (contrib.approvalStatus !== "APPROVED") {
+      throw new ApiError(
+        400,
+        `Cannot finalize order: contribution ${contrib._id} has not been APPROVED (current status: ${contrib.approvalStatus}).`
+      );
+    }
+
+    const requiredPayable =
+      contrib.finalTotalPayableMinor ||
+      (contrib.estimatedMerchandiseShareMinor +
+        (contrib.estimatedShippingShareMinor || 0) +
+        (contrib.roundingAdjustmentMinor || 0));
+
+    if (contrib.totalPaidMinor < requiredPayable) {
+      throw new ApiError(
+        400,
+        `Cannot finalize order: contribution ${contrib._id} is not fully PAID (paid: ${contrib.totalPaidMinor}, required: ${requiredPayable}).`
+      );
+    }
+  }
+
+  // 5. Fetch PriceSnapshot
+  const PriceSnapshot = mongoose.models.PriceSnapshot || mongoose.model("PriceSnapshot");
+  let snapshot = null;
+  if (pool.latestPriceSnapshotId) {
+    const snapQuery = PriceSnapshot.findById(pool.latestPriceSnapshotId);
+    if (session) snapQuery.session(session);
+    snapshot = await snapQuery;
+  }
+  if (!snapshot) {
+    const snapQuery = PriceSnapshot.findOne({ poolId, isSuperseded: false }).sort({ version: -1 });
+    if (session) snapQuery.session(session);
+    snapshot = await snapQuery;
+  }
+
+  if (!snapshot) {
+    throw new ApiError(400, "Cannot finalize order: no valid PriceSnapshot found for pool.");
+  }
+
+  // 6. Resolve Supplier & Product IDs
+  let supplierId = pool.supplierId;
+  let supplierOfferId = pool.supplierOfferId || snapshot.supplierOfferId;
+  let productId = pool.productId;
+
+  if (!supplierId && supplierOfferId) {
+    const SupplierOffer = mongoose.models.SupplierOffer || mongoose.model("SupplierOffer");
+    const offerQuery = SupplierOffer.findById(supplierOfferId);
+    if (session) offerQuery.session(session);
+    const offer = await offerQuery;
+    if (offer) {
+      supplierId = offer.supplierId;
+      if (!productId) productId = offer.productId;
+    }
+  }
+
+  if (!supplierId) {
+    throw new ApiError(400, "Cannot finalize order: supplier reference could not be resolved.");
+  }
+
+  // 7. Build itemized memberOrders allocations
+  const memberOrders = contributions.map((contrib) => {
+    const memberShare = snapshot.memberShares?.find(
+      (s) => s.contributionId?.toString() === contrib._id?.toString()
+    );
+
+    const shop = contrib.shopId;
+    const shopName = shop?.name || shop?.shopName || contrib.shopName || "Retail Shop";
+
+    const unitPriceMinor =
+      memberShare?.appliedUnitPriceMinor ||
+      contrib.unitPriceMinor ||
+      snapshot.appliedUnitPriceMinor ||
+      pool.currentUnitPriceMinor;
+
+    const merchandiseShareMinor =
+      memberShare?.merchandiseShareMinor ||
+      (contrib.quantity * unitPriceMinor);
+
+    const shippingShareMinor =
+      memberShare?.shippingShareMinor ??
+      (contrib.estimatedShippingShareMinor || 0);
+
+    return {
+      contributionId: contrib._id,
+      shopId: shop?._id || contrib.shopId,
+      shopName,
+      quantity: contrib.quantity,
+      unit: contrib.unit || pool.packUnit || "UNIT",
+      unitPriceMinor,
+      merchandiseShareMinor,
+      shippingShareMinor,
+      totalPaidMinor: contrib.totalPaidMinor,
+      deliveryStatus: "PENDING",
+    };
+  });
+
+  // 8. Calculate aggregate totals
+  const totalQuantity = memberOrders.reduce((sum, m) => sum + m.quantity, 0);
+  const merchandiseTotalMinor = memberOrders.reduce(
+    (sum, m) => sum + m.merchandiseShareMinor,
+    0
+  );
+  const shippingTotalMinor = memberOrders.reduce(
+    (sum, m) => sum + m.shippingShareMinor,
+    0
+  );
+  const grandTotalMinor = merchandiseTotalMinor + shippingTotalMinor;
+
+  // 9. Generate unique orderNumber
+  const orderNumber = await generateNextOrderNumber(session);
+
+  // 10. Create Order document
+  const orderDocs = await Order.create(
+    [
+      {
+        orderNumber,
+        poolId: pool._id,
+        supplierId,
+        productId,
+        supplierOfferId,
+        priceSnapshotId: snapshot._id,
+        currency: pool.currency || snapshot.currency || "INR",
+        totalQuantity,
+        unit: pool.packUnit || "UNIT",
+        merchandiseTotalMinor,
+        shippingTotalMinor,
+        grandTotalMinor,
+        memberOrders,
+        supplierConfirmationStatus: "PENDING",
+        supplierReference: null,
+        isSimulatedConfirmation: true,
+        orderState: "AWAITING_SUPPLIER_CONFIRMATION",
+      },
+    ],
+    session ? { session } : {}
+  );
+
+  const order = orderDocs[0];
+
+  // 11. Transition Pool and Contributions
+  pool.state = "ORDERED";
+  await pool.save(session ? { session } : {});
+
+  for (const contrib of contributions) {
+    contrib.state = "FINALIZED";
+    await contrib.save(session ? { session } : {});
+  }
+
+  // 12. Create SupplierSettlement in DEMO / SIMULATED mode
+  await createOrGetSupplierSettlement(order._id, {
+    mode: "DEMO",
+    settlementStatus: "SIMULATED",
+    notes:
+      "Simulated supplier settlement for prototype demonstration. Payout is tracked separately from buyer PayPal captures.",
+  });
+
+  // 13. Audit Log & Notifications (non-throwing)
+  await safeLogAudit({
+    actorId: pool.createdByUserId,
+    actorRole: "SHOP_OWNER",
+    action: "ORDER_CREATED",
+    resourceType: "ORDER",
+    resourceId: order._id,
+    poolId: pool._id,
+    orderId: order._id,
+    metadata: {
+      orderNumber: order.orderNumber,
+      totalQuantity,
+      grandTotalMinor,
+      memberCount: memberOrders.length,
+    },
+  });
+
+  for (const contrib of contributions) {
+    if (contrib.createdByUserId) {
+      await safeSendNotification({
+        recipientUserId: contrib.createdByUserId,
+        shopId: contrib.shopId?._id || contrib.shopId,
+        type: "ORDER_STATUS_UPDATED",
+        title: "Order Finalized",
+        message: `Bulk Purchase Order ${order.orderNumber} has been finalized and submitted to the supplier for confirmation.`,
+        linkUrl: `/orders/${order._id}`,
+        relatedPoolId: pool._id,
+        relatedOrderId: order._id,
+        metadata: { orderNumber: order.orderNumber },
+      });
+    }
+  }
+
+  return order;
+}
+
+/**
+ * Task SRU-05: PATCH /api/orders/:id/supplier-status
+ * Wholesaler or Admin confirms order, updates shipping/delivery status, or rejects order.
+ *
+ * If rejected:
+ *  - Automatically triggers full refunds for all participants (reason: 'SUPPLIER_REJECTED').
+ *  - Sets pool and order to CANCELLED.
+ *  - Dispatches ORDER_REJECTED notifications.
+ *
+ * @param {string|mongoose.Types.ObjectId} orderId
+ * @param {object} updatePayload
+ * @param {object} requestingUser
+ * @returns {Promise<mongoose.Document>}
+ */
+export async function updateSupplierStatus(orderId, updatePayload = {}, requestingUser) {
+  if (!requestingUser) {
+    throw new ApiError(401, "Authentication required to update order supplier status.");
+  }
+
+  const query = mongoose.isValidObjectId(orderId)
+    ? { _id: orderId }
+    : { orderNumber: orderId };
+
+  const order = await Order.findOne(query);
+  if (!order) {
+    throw new ApiError(404, `Order not found with identifier: ${orderId}`);
+  }
+
+  const role = requestingUser.role;
+  const isAdmin = role === "ADMIN";
+  const userSupplierId =
+    requestingUser.supplierId?.toString() || requestingUser._id?.toString();
+  const orderSupplierId = order.supplierId?.toString();
+  const isAssignedSupplier =
+    role === "SUPPLIER" && userSupplierId && orderSupplierId && userSupplierId === orderSupplierId;
+
+  if (!isAdmin && !isAssignedSupplier) {
+    throw new ApiError(
+      403,
+      "Forbidden: Only the assigned supplier or an administrator can update supplier status."
+    );
+  }
+
+  const {
+    status, // "CONFIRMED" | "REJECTED"
+    supplierReference,
+    expectedDeliveryDate,
+    rejectionReason,
+    cancellationReason,
+    deliveryStatus, // "PENDING" | "DISPATCHED" | "DELIVERED" | "CANCELLED"
+    orderState, // "CONFIRMED" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED" | "EXCEPTION"
+    isSimulatedConfirmation,
+  } = updatePayload;
+
+  // Case A: CONFIRMED
+  if (status === "CONFIRMED") {
+    order.supplierConfirmationStatus = "CONFIRMED";
+    order.confirmedAt = new Date();
+    order.orderState = orderState || "CONFIRMED";
+
+    if (supplierReference !== undefined) {
+      order.supplierReference = supplierReference;
+    }
+    if (expectedDeliveryDate !== undefined) {
+      order.expectedDeliveryDate = new Date(expectedDeliveryDate);
+    }
+    if (isSimulatedConfirmation !== undefined) {
+      order.isSimulatedConfirmation = Boolean(isSimulatedConfirmation);
+    }
+    if (deliveryStatus) {
+      order.memberOrders.forEach((m) => {
+        m.deliveryStatus = deliveryStatus;
+      });
+    }
+
+    await order.save();
+
+    await safeLogAudit({
+      actorId: requestingUser._id,
+      actorRole: role,
+      action: "ORDER_CONFIRMED",
+      resourceType: "ORDER",
+      resourceId: order._id,
+      poolId: order.poolId,
+      orderId: order._id,
+      metadata: {
+        orderNumber: order.orderNumber,
+        supplierReference: order.supplierReference,
+        expectedDeliveryDate: order.expectedDeliveryDate,
+      },
+    });
+
+    const Contribution = mongoose.models.Contribution || mongoose.model("Contribution");
+    const contribIds = order.memberOrders.map((m) => m.contributionId);
+    const contributions = await Contribution.find({ _id: { $in: contribIds } });
+
+    for (const contrib of contributions) {
+      if (contrib.createdByUserId) {
+        await safeSendNotification({
+          recipientUserId: contrib.createdByUserId,
+          shopId: contrib.shopId,
+          type: "ORDER_CONFIRMED",
+          title: "Order Confirmed by Supplier",
+          message: `Supplier has confirmed Order ${order.orderNumber}. Expected delivery: ${
+            order.expectedDeliveryDate ? order.expectedDeliveryDate.toLocaleDateString() : "To be confirmed"
+          }.`,
+          linkUrl: `/orders/${order._id}`,
+          relatedPoolId: order.poolId,
+          relatedOrderId: order._id,
+        });
+      }
+    }
+
+    return order;
+  }
+
+  // Case B: REJECTED (Automatically triggers full refunds for all participants)
+  if (status === "REJECTED") {
+    const reason = rejectionReason || cancellationReason || "Order rejected by supplier.";
+
+    order.supplierConfirmationStatus = "REJECTED";
+    order.orderState = "CANCELLED";
+    order.cancellationReason = reason;
+
+    order.memberOrders.forEach((m) => {
+      m.deliveryStatus = "CANCELLED";
+    });
+
+    await order.save();
+
+    // Transition GroupBuyPool to CANCELLED
+    const GroupBuyPool = mongoose.models.GroupBuyPool || mongoose.model("GroupBuyPool");
+    await GroupBuyPool.findByIdAndUpdate(order.poolId, {
+      state: "CANCELLED",
+      closedAt: new Date(),
+      closureReason: `Supplier rejected order: ${reason}`,
+    });
+
+    // Automatic Refund Rollback: initiate refunds for all captured payments in the pool
+    const Payment = mongoose.models.Payment || mongoose.model("Payment");
+    const paidPayments = await Payment.find({
+      poolId: order.poolId,
+      paymentStatus: { $in: ["PAID", "PARTIALLY_REFUNDED"] },
+    });
+
+    const refundResults = [];
+    for (const payment of paidPayments) {
+      try {
+        const result = await initiateRefund({
+          paymentId: payment._id,
+          reason: "SUPPLIER_REJECTED",
+          idempotencyKey: `refund-supplier-rejected-${order._id}-${payment._id}`,
+          requesterUserId: requestingUser._id,
+          metadata: {
+            orderId: order._id,
+            orderNumber: order.orderNumber,
+            rejectionReason: reason,
+          },
+        });
+        refundResults.push(result);
+      } catch (refundErr) {
+        console.error(`[Supplier Status Reject] Refund error for payment ${payment._id}:`, refundErr.message);
+      }
+    }
+
+    // Transition Contributions to REFUNDED
+    const Contribution = mongoose.models.Contribution || mongoose.model("Contribution");
+    const contribIds = order.memberOrders.map((m) => m.contributionId);
+    await Contribution.updateMany(
+      { _id: { $in: contribIds } },
+      { state: "REFUNDED" }
+    );
+
+    await safeLogAudit({
+      actorId: requestingUser._id,
+      actorRole: role,
+      action: "ORDER_REJECTED",
+      resourceType: "ORDER",
+      resourceId: order._id,
+      poolId: order.poolId,
+      orderId: order._id,
+      metadata: {
+        orderNumber: order.orderNumber,
+        reason,
+        refundsCount: refundResults.length,
+      },
+    });
+
+    const contributions = await Contribution.find({ _id: { $in: contribIds } });
+    for (const contrib of contributions) {
+      if (contrib.createdByUserId) {
+        await safeSendNotification({
+          recipientUserId: contrib.createdByUserId,
+          shopId: contrib.shopId,
+          type: "ORDER_REJECTED",
+          title: "Order Cancelled — Supplier Rejected",
+          message: `Order ${order.orderNumber} was rejected by the supplier (${reason}). Full refund has been initiated to your original payment method.`,
+          linkUrl: `/pools/${order.poolId}`,
+          relatedPoolId: order.poolId,
+          relatedOrderId: order._id,
+        });
+      }
+    }
+
+    return order;
+  }
+
+  // Case C: Shipping / Fulfilment Updates
+  if (orderState) {
+    order.orderState = orderState;
+  }
+  if (supplierReference !== undefined) {
+    order.supplierReference = supplierReference;
+  }
+  if (expectedDeliveryDate !== undefined) {
+    order.expectedDeliveryDate = new Date(expectedDeliveryDate);
+  }
+  if (deliveryStatus) {
+    order.memberOrders.forEach((m) => {
+      m.deliveryStatus = deliveryStatus;
+    });
+  }
+
+  await order.save();
+
+  await safeLogAudit({
+    actorId: requestingUser._id,
+    actorRole: role,
+    action: "ORDER_STATUS_UPDATED",
+    resourceType: "ORDER",
+    resourceId: order._id,
+    poolId: order.poolId,
+    orderId: order._id,
+    metadata: {
+      orderNumber: order.orderNumber,
+      orderState: order.orderState,
+      deliveryStatus: deliveryStatus || null,
+    },
+  });
+
+  const Contribution = mongoose.models.Contribution || mongoose.model("Contribution");
+  const contribIds = order.memberOrders.map((m) => m.contributionId);
+  const contributions = await Contribution.find({ _id: { $in: contribIds } });
+
+  for (const contrib of contributions) {
+    if (contrib.createdByUserId) {
+      await safeSendNotification({
+        recipientUserId: contrib.createdByUserId,
+        shopId: contrib.shopId,
+        type: "ORDER_STATUS_UPDATED",
+        title: "Order Fulfilment Update",
+        message: `Order ${order.orderNumber} status updated to ${order.orderState}.`,
+        linkUrl: `/orders/${order._id}`,
+        relatedPoolId: order.poolId,
+        relatedOrderId: order._id,
+      });
+    }
+  }
+
+  return order;
+}
+
 export default {
   generatePurchaseOrderSummary,
   verifyOrderAuthorization,
@@ -739,4 +1295,7 @@ export default {
   createOrGetSupplierSettlement,
   getSupplierSettlement,
   updateSupplierSettlement,
+  createFinalOrderFromFundedPool,
+  updateSupplierStatus,
+  generateNextOrderNumber,
 };
