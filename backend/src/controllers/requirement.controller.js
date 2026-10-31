@@ -4,6 +4,10 @@ import { Requirement } from "../models/Requirement.model.js";
 import { UploadedDocument } from "../models/UploadedDocument.model.js";
 import { parseRequirementCsv } from "../utils/csvParser.js";
 import { extractRequirement } from "../services/ai/extraction.service.js";
+import { matchProducts } from "../services/ai/matching.service.js";
+import { SupplierOffer } from "../models/SupplierOffer.model.js";
+import "../models/Product.model.js";
+import "../models/Supplier.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { APIResponse } from "../utils/apiResponse.js";
 import { ApiError } from "../utils/apiError.js";
@@ -446,5 +450,46 @@ export const extractRequirementById = asyncHandler(async (req, res) => {
       `AI extraction failed: ${error.message}. Requirement status has been set to FAILED_EXTRACTION for manual review and entry.`
     );
   }
+});
+
+/**
+ * Task SAH-06: GET /api/requirements/:id/matches
+ * Finds candidate catalogue offers, applies Stage 1 hard filters and Stage 2 AI specification evaluation,
+ * returning ranked matches for a CONFIRMED purchasing requirement.
+ */
+export const getRequirementMatches = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new ApiError(400, "Invalid requirement ID format.");
+  }
+
+  const requirement = await Requirement.findById(id);
+  if (!requirement) {
+    throw new ApiError(404, "Purchasing requirement not found.");
+  }
+
+  // Ownership guard
+  if (req.user && req.user.role === "SHOP_OWNER" && req.user.shopId) {
+    if (!requirement.shopId.equals(req.user.shopId)) {
+      throw new ApiError(403, "Access denied: You cannot view matches for another shop's requirement.");
+    }
+  }
+
+  // Fetch active candidate offers from MongoDB with product specifications and supplier details
+  const candidateOffers = await SupplierOffer.find({ isActive: true })
+    .populate("productId")
+    .populate("supplierId", "name contactReference serviceAreas verificationStatus")
+    .lean();
+
+  const matchingResults = await matchProducts(requirement, candidateOffers);
+
+  return res.status(200).json(
+    new APIResponse(
+      200,
+      matchingResults,
+      `Found ${matchingResults.totalQualified} qualified supplier offer match(es) for requirement.`
+    )
+  );
 });
 

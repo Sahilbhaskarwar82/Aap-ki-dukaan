@@ -6,6 +6,7 @@ import {
   updateRequirement,
   importCsvRequirements,
   extractRequirementById,
+  getRequirementMatches,
 } from "../controllers/requirement.controller.js";
 import { documentUploadMiddleware } from "../middleware/upload.middleware.js";
 
@@ -48,6 +49,7 @@ router.post("/import-csv", conditionalCsvUpload, importCsvRequirements);
 router.get("/:id", getRequirementById);
 router.patch("/:id", updateRequirement);
 router.post("/:id/extract", extractRequirementById);
+router.get("/:id/matches", getRequirementMatches);
 
 export default router;
 
