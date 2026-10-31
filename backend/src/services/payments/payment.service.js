@@ -64,15 +64,12 @@ async function safeSendNotification(params) {
 async function safeRecalculatePool(poolId, session = null) {
   try {
     const mod = await import("../groupBuy/poolLifecycle.service.js").catch(() => null);
-    if (mod?.recalculatePoolAfterPayment) {
-      await mod.recalculatePoolAfterPayment(poolId, session);
-    } else {
-      console.warn(
-        `[PaymentService] poolLifecycleService not yet available — pool ${poolId} recalculation skipped.`
-      );
+    const recalcFn = mod?.recalculatePoolAfterPayment || mod?.recalculatePool;
+    if (recalcFn) {
+      await recalcFn(poolId, session);
     }
   } catch (err) {
-    console.error(`[PaymentService] poolLifecycleService.recalculatePoolAfterPayment failed:`, err);
+    console.error(`[PaymentService] poolLifecycleService recalculation failed:`, err);
   }
 }
 

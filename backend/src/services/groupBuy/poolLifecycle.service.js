@@ -299,6 +299,8 @@ export const recalculatePool = async (poolId, session = null) => {
   return pool;
 };
 
+export const recalculatePoolAfterPayment = recalculatePool;
+
 export default {
   createPool,
   listPools,
@@ -307,4 +309,5 @@ export default {
   updateContributionQuantity,
   withdrawContribution,
   recalculatePool,
+  recalculatePoolAfterPayment,
 };

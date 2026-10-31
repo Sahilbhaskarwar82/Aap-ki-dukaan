@@ -22,26 +22,37 @@ import {
   handleWebhook,
   reconcilePayment,
 } from "../controllers/payment.controller.js";
+import { verifyJWT } from "../middleware/auth.middleware.js";
 
 const router = Router();
 
-// ── Middleware stub ───────────────────────────────────────────────────────────
-// When Prakhar's auth middleware (authenticateJWT, requireRoles) is wired into
-// app.js, the stubs below are replaced automatically.  For standalone dev/test,
-// we attach a minimal user object so controllers can read req.user.
-//
-// IMPORTANT: This stub MUST be removed / overridden by the real JWT middleware
-// before any route is exposed in production.
+// ── Auth Guard Middleware ───────────────────────────────────────────────────
+// In production or when Bearer token / cookie is supplied, validates JWT.
+// In dev/test when running without tokens, falls back to injected req.user/shop.
 
 function devAuthStub(req, _res, next) {
-  // Only active when NODE_ENV !== 'production' and real middleware isn't present
   if (!req.user && process.env.NODE_ENV !== "production") {
-    // Tests inject req.user via supertest headers or test helper
     req.user = req.user ?? null;
     req.shop = req.shop ?? null;
   }
   next();
 }
+
+const authGuard = (req, res, next) => {
+  if (req.user) return next();
+  const token =
+    req.cookies?.accessToken ||
+    req.cookies?.token ||
+    req.header("Authorization")?.replace("Bearer ", "");
+
+  if (token) {
+    return verifyJWT(req, res, next);
+  }
+  if (process.env.NODE_ENV !== "production") {
+    return devAuthStub(req, res, next);
+  }
+  return verifyJWT(req, res, next);
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Routes
@@ -58,7 +69,7 @@ function devAuthStub(req, _res, next) {
  *
  * Body: { contributionId, paymentPurpose, idempotencyKey, priceSnapshotId? }
  */
-router.post("/create-order", devAuthStub, createOrder);
+router.post("/create-order", authGuard, createOrder);
 
 /**
  * POST /api/payments/:paymentId/capture
@@ -70,7 +81,7 @@ router.post("/create-order", devAuthStub, createOrder);
  *
  * Body: { providerOrderId }
  */
-router.post("/:paymentId/capture", devAuthStub, captureOrder);
+router.post("/:paymentId/capture", authGuard, captureOrder);
 
 /**
  * POST /api/payments/:paymentId/cancel
@@ -80,7 +91,7 @@ router.post("/:paymentId/capture", devAuthStub, captureOrder);
  *
  * Required roles: SHOP_OWNER (must be the original payer)
  */
-router.post("/:paymentId/cancel", devAuthStub, cancelCheckout);
+router.post("/:paymentId/cancel", authGuard, cancelCheckout);
 
 /**
  * GET /api/payments
@@ -90,7 +101,7 @@ router.post("/:paymentId/cancel", devAuthStub, cancelCheckout);
  *
  * Required roles: SHOP_OWNER, ADMIN, REVIEWER
  */
-router.get("/", devAuthStub, listPayments);
+router.get("/", authGuard, listPayments);
 
 /**
  * POST /api/payments/webhook
@@ -105,6 +116,6 @@ router.post("/webhook", handleWebhook);
  *
  * Reconciles an unknown or pending payment with the payment provider.
  */
-router.post("/:paymentId/reconcile", devAuthStub, reconcilePayment);
+router.post("/:paymentId/reconcile", authGuard, reconcilePayment);
 
 export default router;
