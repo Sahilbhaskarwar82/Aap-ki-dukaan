@@ -40,3 +40,4 @@ router.patch("/:id/respond", requireRoles("SUPPLIER", "ADMIN"), respondToQuote);
 router.get("/", listQuotes);
 
 export default router;
+

@@ -265,3 +265,4 @@ quoteSchema.virtual("landedCostMinor").get(function () {
 
 export const Quote = mongoose.model("Quote", quoteSchema);
 export default Quote;
+
