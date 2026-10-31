@@ -168,6 +168,7 @@ describe("Custom & Revised Supplier Quote Workflow Integration Tests (SAH-09)", 
       deadline: new Date(Date.now() - 3600000), // Ended 1 hour ago
       state: "UNDER_MOQ_DECISION_PENDING",
       supplierUnderMoqStatus: "NOT_APPLICABLE",
+      createdByUserId: adminUser._id,
     });
 
     currentUser = shopOwnerUser;
