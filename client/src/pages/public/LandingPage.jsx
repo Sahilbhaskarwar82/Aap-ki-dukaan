@@ -38,7 +38,11 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/Alert';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { toast } from '@/components/ui/Toast';
 
-export function LandingPage() {
+export function LandingPage({
+  onNavigateToLogin,
+  onNavigateToRegister,
+  onNavigate,
+} = {}) {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [howItWorksOpen, setHowItWorksOpen] = useState(false);
@@ -267,6 +271,9 @@ export function LandingPage() {
       onCategorySelect={setSelectedCategory}
       searchQuery={searchQuery}
       setSearchQuery={setSearchQuery}
+      onNavigateToLogin={onNavigateToLogin}
+      onNavigateToRegister={onNavigateToRegister}
+      onNavigate={onNavigate}
     >
       {/* ── SECTION 1: PROMOTIONAL HERO BANNER ── */}
       <section className="relative overflow-hidden bg-gradient-to-b from-[#111620] via-midnight-bg to-midnight-bg border-b border-midnight-border/70 py-12 md:py-16 xl:py-20">
