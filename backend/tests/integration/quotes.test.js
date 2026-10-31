@@ -9,6 +9,7 @@ import { Supplier } from "../../src/models/Supplier.model.js";
 import { Product } from "../../src/models/Product.model.js";
 import { GroupBuyPool } from "../../src/models/GroupBuyPool.model.js";
 import { SupplierOffer } from "../../src/models/SupplierOffer.model.js";
+import { User } from "../../src/models/User.model.js";
 import quoteRouter from "../../src/routes/quote.routes.js";
 
 let mongoServer;
@@ -68,36 +69,37 @@ describe("Custom & Revised Supplier Quote Workflow Integration Tests (SAH-09)", 
       Product.deleteMany({}),
       GroupBuyPool.deleteMany({}),
       SupplierOffer.deleteMany({}),
+      User.deleteMany({}),
     ]);
 
-    // 1. Seed Users
-    supplierUser = {
-      _id: new mongoose.Types.ObjectId(),
+    // 1. Seed Real User Documents in Database
+    supplierUser = await User.create({
       name: "Bharat Supplier Admin",
       role: "SUPPLIER",
       email: "supplier@demo.com",
-    };
+      passwordHash: "Password123!",
+    });
 
-    supplierBUser = {
-      _id: new mongoose.Types.ObjectId(),
+    supplierBUser = await User.create({
       name: "Other Supplier",
       role: "SUPPLIER",
       email: "other_supplier@demo.com",
-    };
+      passwordHash: "Password123!",
+    });
 
-    shopOwnerUser = {
-      _id: new mongoose.Types.ObjectId(),
+    shopOwnerUser = await User.create({
       name: "Chai Point Lucknow",
       role: "SHOP_OWNER",
       email: "retailer@demo.com",
-    };
+      passwordHash: "Password123!",
+    });
 
-    adminUser = {
-      _id: new mongoose.Types.ObjectId(),
+    adminUser = await User.create({
       name: "CoBuy Super Admin",
       role: "ADMIN",
       email: "admin@aapkidukan.in",
-    };
+      passwordHash: "Password123!",
+    });
 
     // 2. Seed Master Supplier & Product
     supplierDoc = await Supplier.create({

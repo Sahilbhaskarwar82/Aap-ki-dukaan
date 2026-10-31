@@ -227,21 +227,28 @@ export const getQuoteById = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid quote ID format.");
   }
 
-  const quote = await Quote.findById(id)
-    .populate("supplierId", "name contactReference serviceAreas verificationStatus ownerUserId")
-    .populate("productId", "canonicalName category baseUnit packSizeDescription specifications")
-    .populate("requestedByUserId", "name email role")
-    .populate("poolId", "title targetMoq totalEligibleQuantity state");
+  const quote = await Quote.findById(id);
 
   if (!quote) {
     throw new ApiError(404, "Quote record not found.");
   }
 
+  const rawRequesterId = quote.requestedByUserId ? quote.requestedByUserId.toString() : null;
+  const rawSupplierId = quote.supplierId ? quote.supplierId.toString() : null;
+
+  await quote.populate([
+    { path: "supplierId", select: "name contactReference serviceAreas verificationStatus ownerUserId" },
+    { path: "productId", select: "canonicalName category baseUnit packSizeDescription specifications" },
+    { path: "requestedByUserId", select: "name email role" },
+    { path: "poolId", select: "title targetMoq totalEligibleQuantity state" },
+  ]);
+
   // Ownership Guard
   const user = req.user;
   if (user && user.role !== "ADMIN" && user.role !== "REVIEWER") {
     if (user.role === "SHOP_OWNER") {
-      const isOwner = quote.requestedByUserId && quote.requestedByUserId._id.toString() === user._id.toString();
+      const requesterIdStr = quote.requestedByUserId?._id?.toString() || rawRequesterId;
+      const isOwner = requesterIdStr === user._id.toString();
       if (!isOwner) {
         throw new ApiError(403, "Access denied: you do not have permission to view this quote.");
       }
@@ -250,7 +257,8 @@ export const getQuoteById = asyncHandler(async (req, res) => {
       const userSupplier = await getSupplierForUser(user);
       const isSupplierTarget =
         supplierOwnerId === user._id.toString() ||
-        (userSupplier && userSupplier._id.toString() === quote.supplierId?._id?.toString());
+        (quote.supplierId?._id && quote.supplierId._id.toString() === userSupplier?._id?.toString()) ||
+        rawSupplierId === userSupplier?._id?.toString();
 
       if (!isSupplierTarget) {
         throw new ApiError(403, "Access denied: this quote is not assigned to your supplier company.");
@@ -427,3 +435,4 @@ export default {
   getQuoteById,
   respondToQuote,
 };
+
