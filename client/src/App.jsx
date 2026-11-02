@@ -94,7 +94,7 @@ import SupplierDetailPage from '@/pages/suppliers/SupplierDetailPage';
 import GroupBuyMarketplacePage from '@/pages/groupBuys/GroupBuyMarketplacePage';
 import GroupBuyCreatePage from '@/pages/groupBuys/GroupBuyCreatePage';
 import GroupBuyDetailPage from '@/pages/groupBuys/GroupBuyDetailPage';
-
+import PoolApprovalPage from '@/pages/groupBuys/PoolApprovalPage';
 // Payments & Refunds (SUJ-06)
 import PaymentsPage from '@/pages/payments/PaymentsPage';
 import RefundsPage from '@/pages/payments/RefundsPage';
@@ -348,6 +348,19 @@ export function AppRoutes() {
             subtitle="Publish a 72-hour collective buying pool from a confirmed requirement"
           >
             <GroupBuyCreatePage />
+          </ProtectedShellRoute>
+        }
+      />
+
+      <Route
+        path="/group-buys/:poolId/approve"
+        element={
+          <ProtectedShellRoute
+            allowedRoles={['SHOP_OWNER']}
+            title="Review Final Price & Approve"
+            subtitle="Review and approve your frozen price snapshot"
+          >
+            <PoolApprovalPage />
           </ProtectedShellRoute>
         }
       />
