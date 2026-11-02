@@ -12,15 +12,10 @@ import { useNavigate } from 'react-router-dom';
 import {
   Package,
   Search,
-  Filter,
-  CheckCircle2,
-  Clock,
-  Truck,
   ArrowRight,
-  FileText,
   AlertTriangle,
-  RotateCcw,
 } from 'lucide-react';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/Alert';
 
 import { formatMinorToMajor } from '@/utils/money';
 import { listOrders } from '@/api/orders.api';
@@ -58,11 +53,15 @@ export function OrdersListPage() {
   }, []);
 
   const filteredOrders = orders.filter((order) => {
+    const q = searchQuery.toLowerCase().trim();
     const matchesSearch =
-      !searchQuery ||
-      (order.orderNumber && order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      !q ||
+      (order.orderNumber && order.orderNumber.toLowerCase().includes(q)) ||
+      (order.supplierId?.name && order.supplierId.name.toLowerCase().includes(q)) ||
       (order.productId?.canonicalName &&
-        order.productId.canonicalName.toLowerCase().includes(searchQuery.toLowerCase()));
+        order.productId.canonicalName.toLowerCase().includes(q)) ||
+      (order.productId?.name &&
+        order.productId.name.toLowerCase().includes(q));
 
     const matchesStatus =
       statusFilter === 'ALL' ||
@@ -71,6 +70,24 @@ export function OrdersListPage() {
 
     return matchesSearch && matchesStatus;
   });
+
+  const getOrderStateVariant = (state = '') => {
+    switch (state) {
+      case 'CONFIRMED':
+      case 'DELIVERED':
+      case 'FULFILLED':
+        return 'success';
+      case 'CANCELLED':
+      case 'EXCEPTION':
+        return 'error';
+      case 'AWAITING_SUPPLIER_CONFIRMATION':
+        return 'warning';
+      case 'SHIPPED':
+      case 'PROCESSING':
+      default:
+        return 'pool';
+    }
+  };
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 py-6" data-testid="orders-list-page">
@@ -93,6 +110,14 @@ export function OrdersListPage() {
 
       <SandboxDisclosureBanner />
 
+      {error && (
+        <Alert variant="error">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Error Loading Orders</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       {/* ── Filter & Search Toolbar ── */}
       <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
         <div className="relative w-full sm:w-72">
@@ -106,7 +131,7 @@ export function OrdersListPage() {
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto">
-          {['ALL', 'CONFIRMED', 'PENDING', 'DISPATCHED', 'DELIVERED'].map((st) => (
+          {['ALL', 'CONFIRMED', 'PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'].map((st) => (
             <button
               key={st}
               onClick={() => setStatusFilter(st)}
@@ -161,9 +186,10 @@ export function OrdersListPage() {
               <tbody className="divide-y divide-midnight-border/60">
                 {filteredOrders.map((order) => {
                   const totalQty =
-                    order.memberOrders?.reduce((acc, m) => acc + (m.allocatedQuantity || 0), 0) ||
                     order.totalQuantity ||
+                    order.memberOrders?.reduce((acc, m) => acc + (m.quantity || m.allocatedQuantity || 0), 0) ||
                     0;
+                  const unit = order.unit || order.packUnit || 'units';
 
                   return (
                     <tr key={order._id} className="hover:bg-midnight-surface/40 transition-colors">
@@ -177,7 +203,7 @@ export function OrdersListPage() {
                         {order.supplierId?.name || 'Regional Wholesaler'}
                       </td>
                       <td className="py-3.5 px-4 font-mono text-slate-300">
-                        {totalQty} {order.packUnit || 'units'}
+                        {totalQty} {unit}
                       </td>
                       <td className="py-3.5 px-4 font-mono font-bold text-teal-300">
                         {formatMinorToMajor(order.grandTotalMinor || 0, order.currency)}
@@ -188,7 +214,7 @@ export function OrdersListPage() {
                             order.supplierConfirmationStatus === 'CONFIRMED'
                               ? 'success'
                               : order.supplierConfirmationStatus === 'REJECTED'
-                              ? 'destructive'
+                              ? 'error'
                               : 'warning'
                           }
                         >
@@ -196,7 +222,9 @@ export function OrdersListPage() {
                         </Badge>
                       </td>
                       <td className="py-3.5 px-4">
-                        <Badge variant="pool">{order.orderState || 'PROCESSING'}</Badge>
+                        <Badge variant={getOrderStateVariant(order.orderState)}>
+                          {order.orderState || 'PROCESSING'}
+                        </Badge>
                       </td>
                       <td className="py-3.5 px-4 text-right">
                         <Button
