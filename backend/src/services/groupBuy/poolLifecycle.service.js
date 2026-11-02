@@ -1,8 +1,12 @@
 import mongoose from "mongoose";
 import { GroupBuyPool } from "../../models/GroupBuyPool.model.js";
 import { Contribution } from "../../models/Contribution.model.js";
+import { Payment } from "../../models/Payment.model.js";
+import { Refund } from "../../models/Refund.model.js";
 import { getOfferMoqRules, validateContributionQuantity } from "../pricing/moqValidator.service.js";
 import { freezePriceSnapshot } from "../pricing/snapshot.service.js";
+import { initiateRefund } from "../refunds/refund.service.js";
+import { evaluatePoolDeadlines } from "../../jobs/poolScheduler.job.js";
 import clockService from "../clock/clock.service.js";
 import env from "../../config/env.js";
 import { ApiError } from "../../utils/apiError.js";
@@ -75,12 +79,20 @@ export const listPools = async (filters = {}) => {
  * Retrieves pool detail by ID along with its active member summary.
  */
 export const getPoolDetail = async (poolId) => {
-  const pool = await GroupBuyPool.findById(poolId)
+  let pool = await GroupBuyPool.findById(poolId)
     .populate("productId")
     .populate("latestPriceSnapshotId");
 
   if (!pool) {
     throw new ApiError(404, "GroupBuyPool not found.", ["POOL_NOT_FOUND"]);
+  }
+
+  // Idempotent 72h deadline expiry check on read
+  if (pool.state === "RECRUITING" && clockService.now() >= pool.deadline) {
+    await evaluatePoolDeadlines();
+    pool = await GroupBuyPool.findById(poolId)
+      .populate("productId")
+      .populate("latestPriceSnapshotId");
   }
 
   const contributions = await Contribution.find({
@@ -95,7 +107,7 @@ export const getPoolDetail = async (poolId) => {
  * Validates and commits a retailer's contribution to join a group-buy pool.
  */
 export const joinPool = async (
-  { poolId, shopId, requirementId = null, quantity, unit, userId },
+  { poolId, shopId, requirementId = null, quantity, unit, acceptSubstitution = false, userId },
   session = null
 ) => {
   const opts = session ? { session } : {};
@@ -140,6 +152,17 @@ export const joinPool = async (
   const unitPrice = pool.currentUnitPriceMinor;
   const merchandiseShare = q * unitPrice;
 
+  const approvedSubstitution = acceptSubstitution
+    ? {
+        isSubstituted: true,
+        substitutionNote: "Buyer agreed to qualified substitution",
+        approvedByUserId: userId,
+        approvedAt: clockService.now(),
+      }
+    : {
+        isSubstituted: false,
+      };
+
   const [contribution] = await Contribution.create(
     [
       {
@@ -154,6 +177,7 @@ export const joinPool = async (
         finalTotalPayableMinor: merchandiseShare,
         state: pool.paymentPolicy === "PAY_AT_JOIN" ? "PENDING_PAYMENT" : "ACTIVE",
         approvalStatus: "NOT_REQUIRED_YET",
+        approvedSubstitution,
       },
     ],
     opts
@@ -204,9 +228,46 @@ export const updateContributionQuantity = async (
   const newQ = Number(newQuantity);
   const deltaQuantity = newQ - oldQuantity;
 
+  // If decreasing quantity, refund excess paid amount
+  if (newQ < oldQuantity) {
+    const netPaid = (contribution.totalPaidMinor || 0) - (contribution.totalRefundedMinor || 0);
+    const targetPayable = newQ * contribution.unitPriceMinor + (contribution.estimatedShippingShareMinor || 0);
+    const refundDue = Math.max(0, netPaid - targetPayable);
+
+    if (refundDue > 0) {
+      const payments = await Payment.find({
+        contributionId: contribution._id,
+        paymentStatus: { $in: ["PAID", "PARTIALLY_REFUNDED"] },
+      }).sort({ createdAt: -1 });
+
+      let remainingRefundDue = refundDue;
+      for (const p of payments) {
+        if (remainingRefundDue <= 0) break;
+        const priorRefunds = await Refund.aggregate([
+          { $match: { paymentId: p._id, status: "COMPLETED" } },
+          { $group: { _id: null, total: { $sum: "$amountMinor" } } },
+        ]);
+        const alreadyRefunded = priorRefunds[0]?.total || 0;
+        const refundableOnPayment = p.amountMinor - alreadyRefunded;
+        if (refundableOnPayment > 0) {
+          const chunk = Math.min(remainingRefundDue, refundableOnPayment);
+          await initiateRefund({
+            paymentId: p._id,
+            amountMinor: chunk,
+            reason: "QUANTITY_REDUCTION",
+            idempotencyKey: `ref-qty-red-${contribution._id}-${p._id}-${newQ}-${Date.now()}`,
+            requesterUserId: userId,
+            metadata: { oldQuantity, newQuantity: newQ },
+          });
+          remainingRefundDue -= chunk;
+        }
+      }
+    }
+  }
+
   contribution.quantity = newQ;
   contribution.estimatedMerchandiseShareMinor = newQ * contribution.unitPriceMinor;
-  contribution.finalTotalPayableMinor = contribution.estimatedMerchandiseShareMinor + contribution.estimatedShippingShareMinor;
+  contribution.finalTotalPayableMinor = contribution.estimatedMerchandiseShareMinor + (contribution.estimatedShippingShareMinor || 0);
   await contribution.save(opts);
 
   if (contribution.state === "ACTIVE") {
@@ -224,7 +285,7 @@ export const updateContributionQuantity = async (
  * Withdraws a participant's contribution before pool lock.
  */
 export const withdrawContribution = async (
-  { poolId, contributionId, shopId, userId },
+  { poolId, contributionId, shopId, userId, reason = "BUYER_WITHDRAWAL" },
   session = null
 ) => {
   const opts = session ? { session } : {};
@@ -250,6 +311,38 @@ export const withdrawContribution = async (
     throw new ApiError(403, "You can only withdraw contributions owned by your shop.", ["SHOP_MISMATCH"]);
   }
 
+  const netPaid = (contribution.totalPaidMinor || 0) - (contribution.totalRefundedMinor || 0);
+
+  if (netPaid > 0) {
+    const payments = await Payment.find({
+      contributionId: contribution._id,
+      paymentStatus: { $in: ["PAID", "PARTIALLY_REFUNDED"] },
+    }).sort({ createdAt: -1 });
+
+    let remainingRefund = netPaid;
+    for (const p of payments) {
+      if (remainingRefund <= 0) break;
+      const priorRefunds = await Refund.aggregate([
+        { $match: { paymentId: p._id, status: "COMPLETED" } },
+        { $group: { _id: null, total: { $sum: "$amountMinor" } } },
+      ]);
+      const alreadyRefunded = priorRefunds[0]?.total || 0;
+      const refundableOnPayment = p.amountMinor - alreadyRefunded;
+      if (refundableOnPayment > 0) {
+        const chunk = Math.min(remainingRefund, refundableOnPayment);
+        await initiateRefund({
+          paymentId: p._id,
+          amountMinor: chunk,
+          reason: "BUYER_WITHDRAWAL",
+          idempotencyKey: `ref-withdraw-${contribution._id}-${p._id}`,
+          requesterUserId: userId,
+          metadata: { withdrawalReason: reason },
+        });
+        remainingRefund -= chunk;
+      }
+    }
+  }
+
   contribution.state = "WITHDRAWN";
   contribution.withdrawnAt = clockService.now();
   await contribution.save(opts);
@@ -258,8 +351,8 @@ export const withdrawContribution = async (
 
   return {
     contribution,
-    refundRequired: contribution.totalPaidMinor > 0,
-    refundAmountMinor: contribution.totalPaidMinor,
+    refundRequired: netPaid > 0,
+    refundAmountMinor: netPaid,
   };
 };
 
@@ -277,7 +370,13 @@ export const recalculatePool = async (poolId, session = null) => {
     state: "ACTIVE",
   }).session(session);
 
-  const totalEligibleQuantity = activeContributions.reduce((sum, c) => sum + c.quantity, 0);
+  const totalEligibleQuantity = activeContributions.reduce((sum, c) => {
+    if (pool.paymentPolicy === "PAY_AT_JOIN") {
+      const paidQty = Math.floor((c.totalPaidMinor || 0) / c.unitPriceMinor);
+      return sum + Math.min(c.quantity, paidQty);
+    }
+    return sum + c.quantity;
+  }, 0);
   const participantCount = activeContributions.length;
 
   pool.totalEligibleQuantity = totalEligibleQuantity;

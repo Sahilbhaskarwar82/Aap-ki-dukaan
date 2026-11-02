@@ -104,6 +104,7 @@ export const handleWithdraw = asyncHandler(async (req, res) => {
     contributionId,
     shopId: req.shop._id,
     userId: req.user._id,
+    reason: req.body?.reason || "BUYER_WITHDRAWAL",
   });
 
   return res.status(200).json(new APIResponse(200, result, "Withdrawn from pool successfully."));
