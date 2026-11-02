@@ -17,17 +17,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Users,
-  Clock,
-  Shield,
   ArrowLeft,
   CheckCircle2,
   AlertTriangle,
   RotateCcw,
   Sparkles,
-  Layers,
   ShoppingBag,
-  ExternalLink,
   Edit3,
 } from 'lucide-react';
 
@@ -91,6 +86,7 @@ export function GroupBuyDetailPage() {
   // Edit / Withdraw Modals
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editQuantity, setEditQuantity] = useState(0);
+  const [previousQuantity, setPreviousQuantity] = useState(null);
   const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
   const [withdrawReason, setWithdrawReason] = useState('BUYER_WITHDRAWAL');
   const [actionLoading, setActionLoading] = useState(false);
@@ -104,14 +100,18 @@ export function GroupBuyDetailPage() {
       const data = await fetchPoolById(poolId);
       setPool(data.pool);
       setContributions(data.contributions || []);
+      if (data.pool) {
+        const moqR = data.pool.minRetailerQuantity || Math.ceil((data.pool.targetMoq || 1) * 0.2);
+        setJoinQuantity((prev) => (prev > 0 ? prev : moqR));
+      }
 
       // If retailer, fetch confirmed requirements to allow linking
       if (user?.role === 'SHOP_OWNER') {
         try {
           const reqs = await fetchConfirmedRequirements();
           setUserRequirements(reqs || []);
-          if (reqs && reqs.length > 0 && !selectedRequirementId) {
-            setSelectedRequirementId(reqs[0]._id);
+          if (reqs && reqs.length > 0) {
+            setSelectedRequirementId((prev) => prev || reqs[0]._id);
           }
         } catch {
           // Non-critical if requirements fail
@@ -122,7 +122,7 @@ export function GroupBuyDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [poolId, user?.role, selectedRequirementId]);
+  }, [poolId, user?.role]);
 
   useEffect(() => {
     loadPoolData();
@@ -148,10 +148,12 @@ export function GroupBuyDetailPage() {
 
   // Initialize joinQuantity once pool data is loaded
   useEffect(() => {
-    if (minRetailerQty && joinQuantity === 0) {
-      setJoinQuantity(minRetailerQty);
+    if (pool?.minRetailerQuantity) {
+      setJoinQuantity(pool.minRetailerQuantity);
+    } else if (pool?.targetMoq) {
+      setJoinQuantity(Math.ceil(pool.targetMoq * 0.2));
     }
-  }, [minRetailerQty, joinQuantity]);
+  }, [pool?.minRetailerQuantity, pool?.targetMoq]);
 
   // Handle Join Pool Click
   const handleInitiateJoin = async () => {
@@ -184,18 +186,26 @@ export function GroupBuyDetailPage() {
   // Handle Edit Quantity (Pre-lock)
   const handleSaveEditQuantity = async () => {
     if (!myContribution) return;
+    const oldQty = myContribution.quantity;
+    if (editQuantity === oldQty) {
+      setEditModalOpen(false);
+      return;
+    }
     try {
       setActionLoading(true);
-      const updated = await updateContributionQuantity(poolId, myContribution._id, editQuantity);
+      await updateContributionQuantity(poolId, myContribution._id, editQuantity);
       setEditModalOpen(false);
-      notify?.('Contribution quantity successfully updated.', 'success');
       // If quantity increased and delta is due, prompt checkout
-      if (editQuantity > myContribution.quantity) {
-        const deltaQty = editQuantity - myContribution.quantity;
+      if (editQuantity > oldQty) {
+        const deltaQty = editQuantity - oldQty;
         setActivePaymentContributionId(myContribution._id);
         setPaymentPurpose('QUANTITY_INCREASE_DELTA');
         setEstimatedPayableMinor(deltaQty * currentPriceMinor);
+        setPreviousQuantity(oldQty);
         setCheckoutModalOpen(true);
+        notify?.('Contribution quantity updated. Complete checkout for additional quantity.', 'info');
+      } else {
+        notify?.('Contribution quantity reduced. Delta refund initiated.', 'success');
       }
       await loadPoolData();
     } catch (err) {
@@ -283,10 +293,12 @@ export function GroupBuyDetailPage() {
     );
   }
 
-  const isRecruiting = pool.state === 'RECRUITING';
+  const isExpired = pool?.deadline ? new Date(pool.deadline).getTime() <= Date.now() : false;
+  const isMoqReached = (pool.totalEligibleQuantity || 0) >= targetMoq;
+  const isRecruiting = pool.state === 'RECRUITING' && !isExpired && !isMoqReached;
+  const isPoolLocked = !isRecruiting;
   const isAwaitingApprovals = pool.state === 'AWAITING_APPROVALS';
   const isUnderMoqDecision = pool.state === 'UNDER_MOQ_DECISION_PENDING';
-  const isFundedOrOrdered = ['FUNDED', 'ORDERED', 'FULFILLED'].includes(pool.state);
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 py-6" data-testid="group-buy-detail-page">
@@ -342,6 +354,22 @@ export function GroupBuyDetailPage() {
         </Alert>
       )}
 
+      {isPoolLocked && !isUnderMoqDecision && !isAwaitingApprovals && (
+        <Alert variant="warning" className="border-amber-500/50 bg-amber-950/30">
+          <AlertTriangle className="h-5 w-5 text-amber-400" />
+          <AlertTitle className="text-amber-300 font-bold">
+            {isExpired ? 'Recruitment Deadline Passed' : isMoqReached ? 'Target MOQ Achieved' : 'Group-Buy Pool Locked'}
+          </AlertTitle>
+          <AlertDescription className="text-amber-200/90 text-sm">
+            {isExpired
+              ? 'The 72-hour recruitment period has ended. New contributions, edits, and withdrawals are locked.'
+              : isMoqReached
+              ? 'The pool has achieved its required wholesale volume and is locked into order processing.'
+              : `Pool is currently in ${pool.state} status. Modifications are closed.`}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* ── Main Dashboard Grid ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column (2 Cols): Progression, Tiers & Breakdown */}
@@ -365,6 +393,7 @@ export function GroupBuyDetailPage() {
                   deadline={pool.deadline}
                   label={isUnderMoqDecision ? '24h Decision Remaining' : 'Recruitment Remaining'}
                   variant="badge"
+                  onExpire={loadPoolData}
                 />
               )}
             </div>
@@ -385,6 +414,7 @@ export function GroupBuyDetailPage() {
               Landed Pricing & Verified Savings
             </h3>
             <PriceBreakdownLedger
+              contribution={myContribution}
               quantity={myContribution?.quantity || joinQuantity || minRetailerQty}
               unit={packUnit}
               unitPriceMinor={currentPriceMinor}
@@ -456,6 +486,7 @@ export function GroupBuyDetailPage() {
                     </span>
                     {c.state === 'APPROVED' && <Badge variant="success">Approved</Badge>}
                     {c.state === 'ACTIVE' && <Badge variant="pool">Active</Badge>}
+                    {c.state === 'PENDING_PAYMENT' && <Badge variant="warning">Pending Payment</Badge>}
                     {c.state === 'WITHDRAWN' && <Badge variant="neutral">Withdrawn</Badge>}
                   </div>
                   <div className="font-mono text-slate-300">
@@ -497,13 +528,39 @@ export function GroupBuyDetailPage() {
                   </div>
                 </div>
 
+                {/* Pending Payment Recovery */}
+                {myContribution.state === 'PENDING_PAYMENT' && isRecruiting && (
+                  <div className="pt-2">
+                    <Alert variant="warning" className="p-3 mb-2 bg-amber-950/30 border-amber-500/30">
+                      <AlertTriangle className="h-4 w-4 text-amber-400" />
+                      <AlertDescription className="text-xs text-amber-200">
+                        Your contribution is pending payment. Complete checkout to activate your share.
+                      </AlertDescription>
+                    </Alert>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      className="w-full justify-center"
+                      onClick={() => {
+                        setActivePaymentContributionId(myContribution._id);
+                        setPaymentPurpose('INITIAL_JOIN');
+                        setEstimatedPayableMinor(myContribution.finalTotalPayableMinor || (myContribution.quantity * currentPriceMinor));
+                        setCheckoutModalOpen(true);
+                      }}
+                    >
+                      Complete Payment
+                    </Button>
+                  </div>
+                )}
+
                 {/* Pre-Lock Controls */}
-                {isRecruiting && (
+                {isRecruiting ? (
                   <div className="pt-3 border-t border-midnight-border/70 space-y-2">
                     <Button
                       variant="outline"
                       size="sm"
                       className="w-full justify-center"
+                      disabled={actionLoading}
                       onClick={() => {
                         setEditQuantity(myContribution.quantity);
                         setEditModalOpen(true);
@@ -515,10 +572,17 @@ export function GroupBuyDetailPage() {
                       variant="destructive"
                       size="sm"
                       className="w-full justify-center"
+                      disabled={actionLoading}
                       onClick={() => setWithdrawModalOpen(true)}
                     >
                       <RotateCcw className="h-4 w-4 mr-2" /> Withdraw & Refund
                     </Button>
+                  </div>
+                ) : (
+                  <div className="pt-3 border-t border-midnight-border/70 text-center">
+                    <p className="text-xs text-midnight-muted">
+                      Pool is locked. Quantity modifications and withdrawals are closed.
+                    </p>
                   </div>
                 )}
 
@@ -553,11 +617,14 @@ export function GroupBuyDetailPage() {
 
                 <div className="space-y-3">
                   <MOQStepCalculator
-                    quantity={joinQuantity}
+                    value={joinQuantity}
                     onChange={setJoinQuantity}
+                    targetMoq={targetMoq}
                     minRetailerQuantity={minRetailerQty}
-                    stepMultiple={stepMultiple}
-                    unitPriceMinor={currentPriceMinor}
+                    quantityStepMultiple={stepMultiple}
+                    currentUnitPriceMinor={currentPriceMinor}
+                    baseUnitPriceMinor={pool.baseUnitPriceMinor || currentPriceMinor}
+                    tiers={pool.pricingTiers || []}
                     currency={currency}
                     packUnit={packUnit}
                   />
@@ -653,12 +720,35 @@ export function GroupBuyDetailPage() {
         onSuccess={async () => {
           notify?.('Payment capture verified! Contribution is active.', 'success');
           setCheckoutModalOpen(false);
+          setPreviousQuantity(null);
           await loadPoolData();
         }}
-        onCancel={() => {
-          notify?.('Payment checkout was cancelled.', 'info');
+        onCancel={async () => {
+          setCheckoutModalOpen(false);
+          if (paymentPurpose === 'QUANTITY_INCREASE_DELTA' && previousQuantity && myContribution) {
+            try {
+              await updateContributionQuantity(poolId, myContribution._id, previousQuantity);
+              setPreviousQuantity(null);
+              await loadPoolData();
+              notify?.('Quantity increase checkout cancelled. Quantity reverted.', 'info');
+            } catch {
+              notify?.('Payment checkout was cancelled.', 'info');
+            }
+          } else {
+            notify?.('Payment checkout was cancelled.', 'info');
+          }
         }}
-        onError={(err) => {
+        onError={async (err) => {
+          setCheckoutModalOpen(false);
+          if (paymentPurpose === 'QUANTITY_INCREASE_DELTA' && previousQuantity && myContribution) {
+            try {
+              await updateContributionQuantity(poolId, myContribution._id, previousQuantity);
+              setPreviousQuantity(null);
+              await loadPoolData();
+            } catch {
+              // Ignore revert error
+            }
+          }
           notify?.(err?.message || 'Payment capture failed.', 'error');
         }}
       />
@@ -675,11 +765,14 @@ export function GroupBuyDetailPage() {
           </DialogHeader>
           <div className="py-4">
             <MOQStepCalculator
-              quantity={editQuantity}
+              value={editQuantity}
               onChange={setEditQuantity}
+              targetMoq={targetMoq}
               minRetailerQuantity={minRetailerQty}
-              stepMultiple={stepMultiple}
-              unitPriceMinor={currentPriceMinor}
+              quantityStepMultiple={stepMultiple}
+              currentUnitPriceMinor={currentPriceMinor}
+              baseUnitPriceMinor={pool.baseUnitPriceMinor || currentPriceMinor}
+              tiers={pool.pricingTiers || []}
               currency={currency}
               packUnit={packUnit}
             />
