@@ -103,7 +103,9 @@ export async function getOrderActivity(orderId) {
   if (!orderId) throw new Error('Order ID is required.');
   const res = await axiosClient.get(`/orders/${orderId}/activity`);
   const data = unwrap(res, []);
-  return Array.isArray(data) ? data : [];
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.activity)) return data.activity;
+  return [];
 }
 
 /**

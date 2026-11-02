@@ -5,26 +5,27 @@
  *
  * Displays:
  *  - Order details, product specifications, wholesale supplier information
- *  - Itemized per-shop member allocations (memberOrders)
- *  - Separate Supplier Settlement Status Card (Rule BR-009 & FR-PAY-016)
- *  - Download Purchase Order (PO) Summary modal / printable view
+ *  - Itemized per-shop member allocations (memberOrders) with buyer payment statuses
+ *  - Separate Supplier Settlement Status Card with SIMULATED, PENDING, CONFIRMED statuses (Rule BR-009 & FR-PAY-016)
+ *  - Download Purchase Order (PO) document & summary modal
  *  - Chronological ActivityTimeline
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Package,
   ArrowLeft,
   FileText,
   Truck,
-  CheckCircle2,
-  AlertTriangle,
   Store,
   DollarSign,
   Download,
   Printer,
   ShieldCheck,
+  Building2,
+  Calendar,
+  AlertTriangle,
 } from 'lucide-react';
 
 import { formatMinorToMajor } from '@/utils/money';
@@ -42,6 +43,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from '@/components/ui/Dialog';
 
 export function OrderDetailPage() {
@@ -59,41 +61,48 @@ export function OrderDetailPage() {
   const [poSummary, setPoSummary] = useState(null);
   const [poLoading, setPoLoading] = useState(false);
 
-  useEffect(() => {
-    async function loadOrderDetail() {
-      if (!orderId) return;
-      try {
-        setLoading(true);
-        setError(null);
-        const [orderData, settlementData, activityData] = await Promise.allSettled([
-          getOrderById(orderId),
-          getOrderSettlement(orderId),
-          getOrderActivity(orderId),
-        ]);
+  const loadOrderDetail = useCallback(async () => {
+    if (!orderId) return;
+    try {
+      setLoading(true);
+      setError(null);
+      const [orderData, settlementData, activityData] = await Promise.allSettled([
+        getOrderById(orderId),
+        getOrderSettlement(orderId),
+        getOrderActivity(orderId),
+      ]);
 
-        if (orderData.status === 'fulfilled') {
-          setOrder(orderData.value);
-        } else {
-          throw new Error('Order not found');
-        }
-
-        if (settlementData.status === 'fulfilled') {
-          setSettlement(settlementData.value);
-        }
-
-        if (activityData.status === 'fulfilled') {
-          setActivity(activityData.value || []);
-        }
-      } catch (err) {
-        setError(err?.response?.data?.message || err?.message || 'Failed to load order details.');
-      } finally {
-        setLoading(false);
+      if (orderData.status === 'fulfilled' && orderData.value) {
+        setOrder(orderData.value);
+      } else {
+        throw new Error(orderData.reason?.response?.data?.message || 'Order not found');
       }
-    }
 
-    loadOrderDetail();
+      if (settlementData.status === 'fulfilled' && settlementData.value) {
+        setSettlement(settlementData.value);
+      }
+
+      if (activityData.status === 'fulfilled' && activityData.value) {
+        const rawActivity = activityData.value;
+        const list = Array.isArray(rawActivity)
+          ? rawActivity
+          : Array.isArray(rawActivity?.activity)
+          ? rawActivity.activity
+          : [];
+        setActivity(list);
+      }
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.message || 'Failed to load order details.');
+    } finally {
+      setLoading(false);
+    }
   }, [orderId]);
 
+  useEffect(() => {
+    loadOrderDetail();
+  }, [loadOrderDetail]);
+
+  // Open PO Summary modal and fetch JSON summary
   const handleOpenPoSummary = async () => {
     try {
       setPoLoading(true);
@@ -101,11 +110,130 @@ export function OrderDetailPage() {
       const poData = await getPoSummary(orderId, 'json');
       setPoSummary(poData);
     } catch {
-      // fallback
+      // fallback handled gracefully
     } finally {
       setPoLoading(false);
     }
   };
+
+  // Download official usable Purchase Order (HTML document with embedded styling)
+  const handleDownloadPo = async () => {
+    try {
+      setPoLoading(true);
+      const htmlContent = await getPoSummary(orderId, 'html');
+      if (typeof htmlContent === 'string' && htmlContent.trim().length > 0) {
+        const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `PO-${order?.orderNumber || orderId}.html`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } else {
+        // Fallback to JSON download if HTML is unavailable
+        const jsonData = poSummary || (await getPoSummary(orderId, 'json'));
+        const blob = new Blob([JSON.stringify(jsonData, null, 2)], {
+          type: 'application/json',
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `PO-${order?.orderNumber || orderId}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+    } catch {
+      // download fallback
+    } finally {
+      setPoLoading(false);
+    }
+  };
+
+  const handlePrintPo = async () => {
+    try {
+      const htmlContent = await getPoSummary(orderId, 'html');
+      if (typeof htmlContent === 'string') {
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.write(htmlContent);
+          printWindow.document.close();
+          printWindow.focus();
+          printWindow.print();
+        }
+      } else {
+        window.print();
+      }
+    } catch {
+      window.print();
+    }
+  };
+
+  // Format activity events for ActivityTimeline
+  const timelineEvents = useMemo(() => {
+    if (activity && activity.length > 0) {
+      return activity.map((item) => ({
+        action: item.action,
+        actorRole: item.actorRole || 'SYSTEM',
+        timestamp: item.createdAt || item.timestamp,
+        description:
+          item.metadata?.description ||
+          item.metadata?.notes ||
+          item.description ||
+          `Order event: ${item.action}`,
+      }));
+    }
+
+    if (!order) return [];
+
+    return [
+      {
+        action: 'ORDER_CREATED',
+        timestamp: order.createdAt,
+        actorRole: 'SYSTEM_SCHEDULER',
+        description: `Final Purchase Order created from funded group buy pool`,
+      },
+      ...(order.confirmedAt
+        ? [
+            {
+              action: 'ORDER_CONFIRMED',
+              timestamp: order.confirmedAt,
+              actorRole: 'SUPPLIER',
+              description: `Supplier confirmed order fulfillment`,
+            },
+          ]
+        : []),
+      ...(order.updatedAt && order.orderState !== 'AWAITING_SUPPLIER_CONFIRMATION'
+        ? [
+            {
+              action: `ORDER_${order.orderState}`,
+              timestamp: order.updatedAt,
+              actorRole: 'SYSTEM',
+              description: `Order status updated to ${order.orderState}`,
+            },
+          ]
+        : []),
+    ];
+  }, [activity, order]);
+
+  // Settlement Status & Disclosures
+  const rawSettlementStatus =
+    settlement?.settlementStatus || order?.supplierSettlementStatus || 'SIMULATED';
+
+  const settlementStatusVariant = useMemo(() => {
+    switch (rawSettlementStatus) {
+      case 'CONFIRMED':
+        return 'success';
+      case 'PENDING':
+        return 'warning';
+      case 'SIMULATED':
+      default:
+        return 'neutral';
+    }
+  }, [rawSettlementStatus]);
 
   if (loading) {
     return (
@@ -120,10 +248,12 @@ export function OrderDetailPage() {
   if (error || !order) {
     return (
       <div className="max-w-4xl mx-auto space-y-4 py-8">
-        <Alert variant="destructive">
+        <Alert variant="error">
           <AlertTriangle className="h-5 w-5" />
           <AlertTitle>Order Not Found</AlertTitle>
-          <AlertDescription>{error || 'The requested purchase order could not be retrieved.'}</AlertDescription>
+          <AlertDescription>
+            {error || 'The requested purchase order could not be retrieved.'}
+          </AlertDescription>
         </Alert>
         <Button variant="outline" size="sm" onClick={() => navigate('/orders')}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Back to Orders
@@ -131,6 +261,12 @@ export function OrderDetailPage() {
       </div>
     );
   }
+
+  const orderUnit = order.unit || order.packUnit || 'units';
+  const totalUnits =
+    order.totalQuantity ||
+    order.memberOrders?.reduce((acc, m) => acc + (m.quantity || m.allocatedQuantity || 0), 0) ||
+    0;
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 py-6" data-testid="order-detail-page">
@@ -149,13 +285,18 @@ export function OrderDetailPage() {
             </div>
             <p className="text-xs text-midnight-muted mt-0.5">
               Created on {new Date(order.createdAt).toLocaleDateString()} • Pool ID:{' '}
-              <span className="font-mono text-slate-300">{order.poolId?._id || order.poolId}</span>
+              <span className="font-mono text-slate-300">
+                {order.poolId?._id || order.poolId}
+              </span>
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
-          <Button variant="primary" size="sm" onClick={handleOpenPoSummary}>
+          <Button variant="outline" size="sm" onClick={handleDownloadPo} disabled={poLoading}>
+            <Download className="h-4 w-4 mr-1.5" /> Download PO
+          </Button>
+          <Button variant="primary" size="sm" onClick={handleOpenPoSummary} disabled={poLoading}>
             <FileText className="h-4 w-4 mr-1.5" /> Purchase Order (PO)
           </Button>
         </div>
@@ -165,9 +306,113 @@ export function OrderDetailPage() {
 
       {/* ── Main Order Summary Grid ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column (2 Cols): Member Allocations & Fulfillment */}
+        {/* Left Column (2 Cols): Specifications, Allocations & Fulfillment */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Section 1: Member Shop Allocations */}
+          {/* Section 1: Product Specifications & Approved Pricing Card */}
+          <div className="rounded-xl border border-midnight-border bg-midnight-card p-6 space-y-4 shadow-xl">
+            <h2 className="text-base font-bold text-white flex items-center justify-between border-b border-midnight-border/70 pb-3">
+              <span className="flex items-center gap-2">
+                <Package className="h-4 w-4 text-midnight-emerald" />
+                Product & Wholesaler Specifications
+              </span>
+              {order.priceSnapshotId?.version && (
+                <Badge variant="provenance">
+                  Snapshot v{order.priceSnapshotId.version}
+                </Badge>
+              )}
+            </h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div className="space-y-2 p-3 bg-midnight-surface/60 rounded-lg border border-midnight-border/60">
+                <div className="flex items-center gap-2 text-slate-300 font-semibold">
+                  <Package className="h-3.5 w-3.5 text-teal-400" />
+                  Product Information
+                </div>
+                <div>
+                  <span className="text-midnight-muted">Item Name:</span>
+                  <p className="text-white font-medium text-sm">
+                    {order.productId?.canonicalName || order.productId?.name || 'Bulk Wholesale Item'}
+                  </p>
+                </div>
+                {order.productId?.category && (
+                  <div>
+                    <span className="text-midnight-muted">Category:</span>
+                    <p className="text-slate-200">{order.productId.category}</p>
+                  </div>
+                )}
+                {order.productId?.packDescription && (
+                  <div>
+                    <span className="text-midnight-muted">Pack Description:</span>
+                    <p className="text-slate-300">{order.productId.packDescription}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2 p-3 bg-midnight-surface/60 rounded-lg border border-midnight-border/60">
+                <div className="flex items-center gap-2 text-slate-300 font-semibold">
+                  <Building2 className="h-3.5 w-3.5 text-amber-400" />
+                  Wholesale Supplier
+                </div>
+                <div>
+                  <span className="text-midnight-muted">Wholesaler Name:</span>
+                  <p className="text-white font-medium text-sm">
+                    {order.supplierId?.name || 'Regional Wholesaler'}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-midnight-muted">Service Regions:</span>
+                  <p className="text-slate-300">
+                    {order.supplierId?.serviceAreas?.join(', ') || 'Regional Hub'}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-midnight-muted">Data Provenance:</span>
+                  <p className="text-teal-300 font-mono">
+                    {order.supplierId?.provenance || 'VERIFIED_SUPPLIER'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Approved Pricing Summary */}
+            <div className="rounded-lg bg-midnight-surface/80 p-4 border border-midnight-border/70 space-y-2 text-xs">
+              <div className="text-xs font-bold text-white uppercase tracking-wider pb-1 border-b border-midnight-border/60 flex justify-between">
+                <span>Approved Frozen Pricing Terms</span>
+                <span className="text-midnight-muted font-normal">
+                  {order.priceSnapshotId?.shippingAllocationMethod || 'PER_UNIT'} •{' '}
+                  {order.priceSnapshotId?.taxInclusion || 'GST_EXCLUDED'}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+                <div>
+                  <span className="text-midnight-muted">Total Pooled Qty:</span>
+                  <p className="font-mono font-bold text-white">
+                    {totalUnits} {orderUnit}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-midnight-muted">Merchandise Total:</span>
+                  <p className="font-mono font-bold text-white">
+                    {formatMinorToMajor(order.merchandiseTotalMinor || 0, order.currency)}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-midnight-muted">Shipping Total:</span>
+                  <p className="font-mono font-bold text-white">
+                    {formatMinorToMajor(order.shippingTotalMinor || 0, order.currency)}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-midnight-muted">Grand Total:</span>
+                  <p className="font-mono font-bold text-teal-300">
+                    {formatMinorToMajor(order.grandTotalMinor || 0, order.currency)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 2: Member Kirana Allocations with Buyer Payment Statuses */}
           <div className="rounded-xl border border-midnight-border bg-midnight-card p-6 space-y-4 shadow-xl">
             <h2 className="text-base font-bold text-white flex items-center justify-between border-b border-midnight-border/70 pb-3">
               <span className="flex items-center gap-2">
@@ -188,54 +433,86 @@ export function OrderDetailPage() {
                     <th className="py-2.5 px-3">Unit Price</th>
                     <th className="py-2.5 px-3">Merchandise Share</th>
                     <th className="py-2.5 px-3">Shipping Share</th>
-                    <th className="py-2.5 px-3 text-right">Payment</th>
+                    <th className="py-2.5 px-3">Buyer Payment</th>
+                    <th className="py-2.5 px-3 text-right">Delivery Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-midnight-border/50">
-                  {(order.memberOrders || []).map((m, idx) => (
-                    <tr key={idx} className="hover:bg-midnight-surface/30">
-                      <td className="py-3 px-3 font-medium text-white">
-                        {m.shopId?.name || `Shop #${(m.shopId?._id || m.shopId || '').slice(-4)}`}
-                      </td>
-                      <td className="py-3 px-3 font-mono text-slate-300">
-                        {m.allocatedQuantity} {order.packUnit || 'units'}
-                      </td>
-                      <td className="py-3 px-3 font-mono text-slate-300">
-                        {formatMinorToMajor(m.unitPriceMinor || 0, order.currency)}
-                      </td>
-                      <td className="py-3 px-3 font-mono text-slate-300">
-                        {formatMinorToMajor(m.merchandiseShareMinor || 0, order.currency)}
-                      </td>
-                      <td className="py-3 px-3 font-mono text-slate-300">
-                        {formatMinorToMajor(m.shippingShareMinor || 0, order.currency)}
-                      </td>
-                      <td className="py-3 px-3 text-right">
-                        <Badge variant="success">PAID</Badge>
-                      </td>
-                    </tr>
-                  ))}
+                  {(order.memberOrders || []).map((m, idx) => {
+                    const shopDisplay =
+                      m.shopName || m.shopId?.name || `Shop #${(m.shopId?._id || m.shopId || '').slice(-4)}`;
+                    const qty = m.quantity || m.allocatedQuantity || 0;
+                    const unit = m.unit || orderUnit;
+                    const isPaid = (m.totalPaidMinor || 0) > 0;
+
+                    return (
+                      <tr key={idx} className="hover:bg-midnight-surface/30">
+                        <td className="py-3 px-3 font-medium text-white">{shopDisplay}</td>
+                        <td className="py-3 px-3 font-mono text-slate-300">
+                          {qty} {unit}
+                        </td>
+                        <td className="py-3 px-3 font-mono text-slate-300">
+                          {formatMinorToMajor(m.unitPriceMinor || 0, order.currency)}
+                        </td>
+                        <td className="py-3 px-3 font-mono text-slate-300">
+                          {formatMinorToMajor(m.merchandiseShareMinor || 0, order.currency)}
+                        </td>
+                        <td className="py-3 px-3 font-mono text-slate-300">
+                          {formatMinorToMajor(m.shippingShareMinor || 0, order.currency)}
+                        </td>
+                        <td className="py-3 px-3">
+                          <div className="flex items-center gap-1.5">
+                            <Badge variant={isPaid ? 'success' : 'warning'}>
+                              {isPaid ? 'PAID' : 'PENDING'}
+                            </Badge>
+                            <span className="font-mono text-[11px] text-teal-300">
+                              {formatMinorToMajor(
+                                m.totalPaidMinor || (m.merchandiseShareMinor + (m.shippingShareMinor || 0)),
+                                order.currency
+                              )}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 text-right">
+                          <Badge
+                            variant={
+                              m.deliveryStatus === 'DELIVERED'
+                                ? 'success'
+                                : m.deliveryStatus === 'DISPATCHED'
+                                ? 'pool'
+                                : 'neutral'
+                            }
+                          >
+                            {m.deliveryStatus || 'PENDING'}
+                          </Badge>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           </div>
 
-          {/* Section 2: Fulfillment & Dispatch Status */}
+          {/* Section 3: Fulfillment & Dispatch Status */}
           <div className="rounded-xl border border-midnight-border bg-midnight-card p-6 space-y-4 shadow-xl">
             <h2 className="text-base font-bold text-white flex items-center gap-2 border-b border-midnight-border/70 pb-3">
               <Truck className="h-4 w-4 text-teal-400" />
               Supplier Fulfillment & Dispatch Status
             </h2>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-xs">
               <div className="space-y-1">
-                <span className="text-midnight-muted uppercase tracking-wider">Wholesaler Confirmation</span>
+                <span className="text-midnight-muted uppercase tracking-wider">
+                  Wholesaler Confirmation
+                </span>
                 <div>
                   <Badge
                     variant={
                       order.supplierConfirmationStatus === 'CONFIRMED'
                         ? 'success'
                         : order.supplierConfirmationStatus === 'REJECTED'
-                        ? 'destructive'
+                        ? 'error'
                         : 'warning'
                     }
                   >
@@ -245,13 +522,33 @@ export function OrderDetailPage() {
               </div>
 
               <div className="space-y-1">
-                <span className="text-midnight-muted uppercase tracking-wider">Carrier / Logistics</span>
-                <p className="font-medium text-white">{order.carrierName || 'Regional Bulk Carrier'}</p>
+                <span className="text-midnight-muted uppercase tracking-wider">
+                  Carrier / Logistics
+                </span>
+                <p className="font-medium text-white">
+                  {order.carrierName || 'Regional Bulk Carrier'}
+                </p>
               </div>
 
               <div className="space-y-1">
-                <span className="text-midnight-muted uppercase tracking-wider">Tracking Reference</span>
-                <p className="font-mono text-teal-300">{order.deliveryTrackingNumber || 'TRK-2026-PENDING'}</p>
+                <span className="text-midnight-muted uppercase tracking-wider">
+                  Tracking Reference
+                </span>
+                <p className="font-mono text-teal-300">
+                  {order.deliveryTrackingNumber || 'TRK-2026-PENDING'}
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <span className="text-midnight-muted uppercase tracking-wider">
+                  Expected Delivery
+                </span>
+                <p className="font-medium text-slate-300 flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5 text-midnight-muted" />
+                  {order.expectedDeliveryDate
+                    ? new Date(order.expectedDeliveryDate).toLocaleDateString()
+                    : 'Wholesaler Scheduled'}
+                </p>
               </div>
             </div>
           </div>
@@ -267,8 +564,8 @@ export function OrderDetailPage() {
                   <DollarSign className="h-4 w-4 text-midnight-emerald" />
                   Wholesaler Settlement
                 </h3>
-                <Badge variant="neutral">
-                  {settlement?.settlementStatus || order.supplierSettlementStatus || 'SIMULATED'}
+                <Badge variant={settlementStatusVariant}>
+                  {rawSettlementStatus}
                 </Badge>
               </div>
               <p className="text-[11px] text-midnight-muted mt-1">
@@ -276,7 +573,20 @@ export function OrderDetailPage() {
               </p>
             </div>
 
+            <div className="flex items-center gap-2">
+              <Badge variant="warning">SIMULATED SETTLEMENT</Badge>
+              <Badge variant="outline" className="text-[10px]">
+                {settlement?.mode || 'DEMO MODE'}
+              </Badge>
+            </div>
+
             <div className="rounded-lg bg-midnight-surface/60 border border-midnight-border/60 p-4 space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-midnight-muted">Settlement Status:</span>
+                <span className="font-mono font-bold text-white">
+                  {rawSettlementStatus}
+                </span>
+              </div>
               <div className="flex justify-between">
                 <span className="text-midnight-muted">Settlement Mode:</span>
                 <span className="font-mono text-amber-300 font-bold">
@@ -304,10 +614,16 @@ export function OrderDetailPage() {
             </div>
 
             {/* Mandatory Transparency Disclosure (BR-009 & FR-PAY-016) */}
-            <p className="text-[11px] text-slate-400 italic leading-relaxed">
-              * Wholesaler payout is tracked in SupplierSettlement completely separately from buyer payments.
-              Prototype settlements default to SIMULATED/DEMO with explicit disclosure.
-            </p>
+            <div className="p-3 bg-amber-950/20 rounded-lg border border-amber-500/30 text-[11px] text-amber-200/90 leading-relaxed space-y-1">
+              <div className="font-semibold text-amber-300 flex items-center gap-1.5">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Settlement Separation Guard
+              </div>
+              <p>
+                Wholesaler payout is tracked in SupplierSettlement completely separately from buyer payments.
+                Prototype settlements default to SIMULATED/DEMO with explicit disclosure. Funds are never confused with buyer PayPal captures.
+              </p>
+            </div>
           </div>
 
           {/* Chronological Audit Timeline */}
@@ -315,26 +631,7 @@ export function OrderDetailPage() {
             <h3 className="text-sm font-bold text-white uppercase tracking-wider text-slate-300">
               Order Activity Trail
             </h3>
-            <ActivityTimeline
-              events={
-                activity.length > 0
-                  ? activity
-                  : [
-                      {
-                        action: 'ORDER_CREATED',
-                        timestamp: order.createdAt,
-                        actorRole: 'SYSTEM',
-                        description: `Final Purchase Order created from funded group pool`,
-                      },
-                      {
-                        action: order.supplierConfirmationStatus === 'CONFIRMED' ? 'SUPPLIER_CONFIRMED' : 'AWAITING_SUPPLIER',
-                        timestamp: order.updatedAt,
-                        actorRole: 'SUPPLIER',
-                        description: `Supplier confirmation: ${order.supplierConfirmationStatus || 'PENDING'}`,
-                      },
-                    ]
-              }
-            />
+            <ActivityTimeline events={timelineEvents} />
           </div>
         </div>
       </div>
@@ -352,39 +649,84 @@ export function OrderDetailPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4 text-xs font-mono bg-midnight-surface/80 p-5 rounded-xl border border-midnight-border">
+          <div className="space-y-4 py-4 text-xs font-mono bg-midnight-surface/80 p-5 rounded-xl border border-midnight-border max-h-[60vh] overflow-y-auto">
             <div className="flex justify-between border-b border-midnight-border pb-3">
               <div>
                 <p className="text-white font-bold text-sm">AAP KI DUKAN (COBUY AI)</p>
                 <p className="text-midnight-muted">B2B Group Procurement Network</p>
+                <div className="flex gap-2 mt-2">
+                  <Badge variant="warning">TEST TRANSACTION — PAYPAL SANDBOX</Badge>
+                  <Badge variant="neutral">SIMULATED SETTLEMENT</Badge>
+                </div>
               </div>
               <div className="text-right">
                 <p className="text-teal-300 font-bold">{order.orderNumber}</p>
-                <p className="text-midnight-muted">{new Date(order.createdAt).toLocaleDateString()}</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 py-2">
-              <div>
-                <span className="text-midnight-muted uppercase">Supplier:</span>
-                <p className="text-white font-bold">{order.supplierId?.name || 'Verified Wholesaler'}</p>
-                <p className="text-slate-300">{order.supplierId?.serviceAreas?.join(', ') || 'Regional Area'}</p>
-              </div>
-              <div className="text-right">
-                <span className="text-midnight-muted uppercase">Allocations:</span>
-                <p className="text-white">{order.memberOrders?.length || 0} Participating Kiranas</p>
-                <p className="text-teal-300 font-bold">
-                  Total: {formatMinorToMajor(order.grandTotalMinor || 0, order.currency)}
+                <p className="text-midnight-muted">
+                  Issued: {new Date(order.createdAt).toLocaleDateString()}
+                </p>
+                <p className="text-slate-300 text-[11px] mt-1 font-sans">
+                  Status: <strong className="text-white">{order.orderState}</strong>
                 </p>
               </div>
             </div>
 
-            <div className="pt-2 border-t border-midnight-border">
+            <div className="grid grid-cols-2 gap-4 py-2 border-b border-midnight-border">
+              <div>
+                <span className="text-midnight-muted uppercase">Supplier / Wholesaler:</span>
+                <p className="text-white font-bold text-sm">
+                  {order.supplierId?.name || 'Verified Wholesaler'}
+                </p>
+                <p className="text-slate-300">
+                  {order.supplierId?.serviceAreas?.join(', ') || 'Regional Area'}
+                </p>
+              </div>
+              <div className="text-right">
+                <span className="text-midnight-muted uppercase">Procurement Pool:</span>
+                <p className="text-white font-bold">
+                  {order.poolId?.title || 'Group Procurement Pool'}
+                </p>
+                <p className="text-slate-300">
+                  {order.memberOrders?.length || 0} Participating Kiranas
+                </p>
+              </div>
+            </div>
+
+            {/* Product & Pricing Table in Modal */}
+            <div className="py-2 space-y-2 border-b border-midnight-border">
+              <div className="text-white font-bold">Product: {order.productId?.canonicalName || order.productId?.name}</div>
+              <div className="flex justify-between text-slate-300">
+                <span>Total Quantity:</span>
+                <span className="font-bold text-white">{totalUnits} {orderUnit}</span>
+              </div>
+              <div className="flex justify-between text-slate-300">
+                <span>Merchandise Wholesale Total:</span>
+                <span>{formatMinorToMajor(order.merchandiseTotalMinor || 0, order.currency)}</span>
+              </div>
+              <div className="flex justify-between text-slate-300">
+                <span>Shipping Allocation Total:</span>
+                <span>{formatMinorToMajor(order.shippingTotalMinor || 0, order.currency)}</span>
+              </div>
+              <div className="flex justify-between text-white font-bold pt-1 border-t border-midnight-border/60">
+                <span>Grand Total:</span>
+                <span className="text-teal-300">{formatMinorToMajor(order.grandTotalMinor || 0, order.currency)}</span>
+              </div>
+            </div>
+
+            <div className="pt-2">
               <p className="text-[11px] text-midnight-muted italic">
                 Authorized digital Purchase Order generated under CoBuy AI escrow protocol.
               </p>
             </div>
           </div>
+
+          <DialogFooter className="flex gap-2 justify-end">
+            <Button variant="outline" size="sm" onClick={handlePrintPo}>
+              <Printer className="h-4 w-4 mr-1.5" /> Print / PDF
+            </Button>
+            <Button variant="primary" size="sm" onClick={handleDownloadPo} disabled={poLoading}>
+              <Download className="h-4 w-4 mr-1.5" /> Download PO Document (.html)
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
