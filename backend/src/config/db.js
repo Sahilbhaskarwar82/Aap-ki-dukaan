@@ -17,7 +17,17 @@ export const connectDB = async (uri = null) => {
     return mongoose.connection;
   }
 
-  const connectionString = uri || `${env.MONGODB_URI}/${DB_NAME}`;
+  let connectionString = uri;
+  if (!connectionString) {
+    const trimmed = (env.MONGODB_URI || "mongodb://localhost:27017").replace(/\/+$/, "");
+    // If MONGODB_URI has no database path component (e.g. mongodb://localhost:27017), append DB_NAME
+    const parts = trimmed.split("/");
+    if (parts.length <= 3) {
+      connectionString = `${trimmed}/${DB_NAME}`;
+    } else {
+      connectionString = trimmed;
+    }
+  }
 
   try {
     const connectionInstance = await mongoose.connect(connectionString, MONGO_OPTIONS);
