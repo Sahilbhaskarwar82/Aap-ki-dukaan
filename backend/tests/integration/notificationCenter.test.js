@@ -3,7 +3,7 @@
  * Persistent In-App Notification Center & Fault Isolation
  *
  * Requirements:
- *  - Supports all 19 lifecycle event types.
+ *  - Supports all 20 lifecycle event types.
  *  - FR-NOTIF-004: Non-throwing try/catch boundary protects financial and lifecycle state mutations.
  *  - Enforces recipient ownership on read/unread mutations.
  *  - GET /api/notifications, PATCH /api/notifications/:id/read, PATCH /api/notifications/read-all.
@@ -73,8 +73,8 @@ describe("Task SRU-08: Persistent In-App Notification Center", () => {
   });
 
   // ── 1. Model & 19 Lifecycle Types ──────────────────────────────────────────
-  it("1. Notification model successfully supports and persists all 19 lifecycle event types", async () => {
-    expect(NOTIFICATION_TYPES).toHaveLength(19);
+  it("1. Notification model successfully supports and persists all 20 lifecycle event types", async () => {
+    expect(NOTIFICATION_TYPES).toHaveLength(20);
 
     for (const type of NOTIFICATION_TYPES) {
       const res = await createNotification({
@@ -95,7 +95,7 @@ describe("Task SRU-08: Persistent In-App Notification Center", () => {
     }
 
     const count = await Notification.countDocuments({ recipientUserId: userAId });
-    expect(count).toBe(19);
+    expect(count).toBe(20);
   });
 
   // ── 2. FR-NOTIF-004 Fault Isolation ────────────────────────────────────────
