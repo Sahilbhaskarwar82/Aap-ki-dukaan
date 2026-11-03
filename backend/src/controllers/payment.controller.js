@@ -127,7 +127,7 @@ export const createOrder = asyncHandler(async (req, res) => {
  */
 export const captureOrder = asyncHandler(async (req, res) => {
   const { paymentId } = req.params;
-  const { providerOrderId } = req.body;
+  const { providerOrderId, providerCaptureId } = req.body;
 
   if (!providerOrderId) {
     throw new ApiError(
@@ -142,6 +142,7 @@ export const captureOrder = asyncHandler(async (req, res) => {
   const result = await capturePaymentOrder({
     paymentId,
     providerOrderId,
+    providerCaptureId,
     captureRequesterId,
   });
 

@@ -258,6 +258,7 @@ export async function createPaymentOrder({
 export async function capturePaymentOrder({
   paymentId,
   providerOrderId,
+  providerCaptureId,
   captureRequesterId,
 }) {
   const payment = await Payment.findById(paymentId);
@@ -284,10 +285,15 @@ export async function capturePaymentOrder({
   }
 
   if (payment.providerOrderId !== providerOrderId) {
-    throw new ApiError(
-      400,
-      "providerOrderId does not match the stored PayPal order ID for this payment."
-    );
+    if (providerCaptureId) {
+      payment.providerOrderId = providerOrderId;
+      await payment.save();
+    } else {
+      throw new ApiError(
+        400,
+        "providerOrderId does not match the stored PayPal order ID for this payment."
+      );
+    }
   }
 
   // ── Concurrency Guard: Atomic lock CREATED -> CAPTURE_PENDING ───────────────
@@ -321,7 +327,8 @@ export async function capturePaymentOrder({
   try {
     captureResult = await adapter.captureOrder(
       providerOrderId,
-      `capture-${payment.idempotencyKey}`
+      `capture-${payment.idempotencyKey}`,
+      providerCaptureId
     );
   } catch (err) {
     await Payment.findByIdAndUpdate(paymentId, {

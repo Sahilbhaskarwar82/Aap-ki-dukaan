@@ -716,7 +716,7 @@ export function GroupBuyDetailPage() {
         currency={currency}
         poolTitle={pool.title}
         productTitle={pool.productId?.canonicalName || pool.title}
-        isMockMode={true}
+        isMockMode={import.meta.env.VITE_PAYMENT_MODE === 'mock'}
         onSuccess={async () => {
           notify?.('Payment capture verified! Contribution is active.', 'success');
           setCheckoutModalOpen(false);

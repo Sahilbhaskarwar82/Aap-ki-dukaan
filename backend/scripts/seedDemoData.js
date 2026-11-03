@@ -411,7 +411,7 @@ async function seedMasterData() {
       recipientUserId: userMap['retailer1@example.com']._id,
       shopId: shopMap['retailer1@example.com']._id,
       poolId: cupPool._id,
-      type: 'EARLY_MOQ_LOCK',
+      type: 'MOQ_REACHED_LOCKED',
       title: 'MOQ Milestone Reached: ₹4,800 Bulk Tier Unlocked!',
       message: 'The Lucknow Paper Cups Pool reached its 60-box target! Review your final snapshot terms.',
       isRead: false,
