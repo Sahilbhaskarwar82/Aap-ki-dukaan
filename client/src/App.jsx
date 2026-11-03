@@ -110,7 +110,11 @@ import NotificationsPage from '@/pages/notifications/NotificationsPage';
 import SupplierPortalPage from '@/pages/supplierPortal/SupplierPortalPage';
 
 // Platform Administrator Workspace (SUJ-09 / SRU-10)
-import AdminWorkspacePage from '@/pages/admin/AdminWorkspacePage';
+import AdminDashboardPage from '@/pages/admin/AdminDashboardPage';
+import AdminSuppliersPage from '@/pages/admin/AdminSuppliersPage';
+import AdminOffersPage from '@/pages/admin/AdminOffersPage';
+import AdminPoolsOrdersPage from '@/pages/admin/AdminPoolsOrdersPage';
+import AdminAuditLogsPage from '@/pages/admin/AdminAuditLogsPage';
 
 // ── Role Landing Destinations ─────────────────────────────────────────────────
 export function getRoleHome(role) {
@@ -453,7 +457,7 @@ export function AppRoutes() {
             title="Platform Administration"
             subtitle="Platform operational health, pool lifecycle and exceptions"
           >
-            <AdminWorkspacePage view="overview" />
+            <AdminDashboardPage />
           </ProtectedShellRoute>
         }
       />
@@ -466,7 +470,7 @@ export function AppRoutes() {
             title="Manage Suppliers"
             subtitle="Supplier verification and provenance badges"
           >
-            <AdminWorkspacePage view="suppliers" />
+            <AdminSuppliersPage />
           </ProtectedShellRoute>
         }
       />
@@ -479,7 +483,7 @@ export function AppRoutes() {
             title="Manage Offers"
             subtitle="Wholesale catalogue offers and tier pricing validation"
           >
-            <AdminWorkspacePage view="offers" />
+            <AdminOffersPage />
           </ProtectedShellRoute>
         }
       />
@@ -492,7 +496,7 @@ export function AppRoutes() {
             title="Pools & Reconciliation"
             subtitle="Active pool exceptions, under-MOQ resolutions and manual overrides"
           >
-            <AdminWorkspacePage view="pools" />
+            <AdminPoolsOrdersPage />
           </ProtectedShellRoute>
         }
       />
@@ -505,7 +509,7 @@ export function AppRoutes() {
             title="Audit & AI Logs"
             subtitle="Immutable operational audit trail and AI execution traces"
           >
-            <AdminWorkspacePage view="audit" />
+            <AdminAuditLogsPage />
           </ProtectedShellRoute>
         }
       />
