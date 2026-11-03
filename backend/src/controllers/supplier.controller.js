@@ -324,3 +324,130 @@ export const compareOffers = asyncHandler(async (req, res) => {
   );
 });
 
+/**
+ * Self-service supplier profile: GET /api/suppliers/me
+ * Retrieves the authenticated supplier's business profile.
+ */
+export const getMySupplierProfile = asyncHandler(async (req, res) => {
+  let supplier = await Supplier.findOne({ ownerUserId: req.user._id });
+
+  if (!supplier && req.user.email) {
+    supplier = await Supplier.findOne({ "contactReference.email": req.user.email.toLowerCase() });
+    if (supplier && !supplier.ownerUserId) {
+      supplier.ownerUserId = req.user._id;
+      await supplier.save();
+    }
+  }
+
+  // If supplier account does not have a catalogue record yet, create an initial one
+  if (!supplier) {
+    supplier = await Supplier.create({
+      ownerUserId: req.user._id,
+      name: req.user.name || "Wholesale Supplier",
+      contactReference: {
+        contactPerson: req.user.name || "",
+        email: req.user.email || "",
+        phone: "",
+        whatsapp: "",
+        address: "",
+        gstin: "",
+      },
+      serviceAreas: ["ALL_INDIA"],
+      verificationStatus: "VERIFIED",
+      activeStatus: "ACTIVE",
+      dataSourceType: "SUPPLIER_SUBMITTED",
+    });
+  }
+
+  return res.status(200).json(
+    new APIResponse(200, supplier, "Supplier profile fetched successfully.")
+  );
+});
+
+/**
+ * Self-service supplier profile update: PATCH /api/suppliers/me
+ * Allows authenticated suppliers to edit their business details.
+ * Protects read-only fields: verificationStatus, activeStatus, dataSourceType, ownerUserId, email.
+ */
+export const updateMySupplierProfile = asyncHandler(async (req, res) => {
+  let supplier = await Supplier.findOne({ ownerUserId: req.user._id });
+
+  if (!supplier && req.user.email) {
+    supplier = await Supplier.findOne({ "contactReference.email": req.user.email.toLowerCase() });
+    if (supplier && !supplier.ownerUserId) {
+      supplier.ownerUserId = req.user._id;
+      await supplier.save();
+    }
+  }
+
+  if (!supplier) {
+    if (!req.body.name || !req.body.name.trim()) {
+      throw new ApiError(400, "Supplier company name is required.");
+    }
+    supplier = new Supplier({
+      ownerUserId: req.user._id,
+      name: req.body.name.trim(),
+      serviceAreas: Array.isArray(req.body.serviceAreas) && req.body.serviceAreas.length > 0
+        ? req.body.serviceAreas.map((a) => a.trim().toUpperCase())
+        : ["ALL_INDIA"],
+      verificationStatus: "VERIFIED",
+      activeStatus: "ACTIVE",
+      dataSourceType: "SUPPLIER_SUBMITTED",
+      contactReference: {
+        email: req.user.email || "",
+      },
+    });
+  }
+
+  const { name, serviceAreas, contactReference } = req.body;
+
+  if (name !== undefined) {
+    if (!name || !name.trim()) {
+      throw new ApiError(400, "Supplier company name is required and cannot be empty.");
+    }
+    if (name.trim().length > 160) {
+      throw new ApiError(400, "Supplier name cannot exceed 160 characters.");
+    }
+    supplier.name = name.trim();
+  }
+
+  if (serviceAreas !== undefined) {
+    if (!Array.isArray(serviceAreas) || serviceAreas.length === 0) {
+      throw new ApiError(400, "At least one service area is required.");
+    }
+    const cleanAreas = serviceAreas
+      .map((a) => (typeof a === "string" ? a.trim().toUpperCase() : ""))
+      .filter(Boolean);
+    if (cleanAreas.length === 0) {
+      throw new ApiError(400, "At least one valid service area is required.");
+    }
+    supplier.serviceAreas = cleanAreas;
+  }
+
+  if (contactReference !== undefined && typeof contactReference === "object") {
+    if (!supplier.contactReference) {
+      supplier.contactReference = {};
+    }
+    if (contactReference.contactPerson !== undefined) {
+      supplier.contactReference.contactPerson = contactReference.contactPerson.trim();
+    }
+    if (contactReference.phone !== undefined) {
+      supplier.contactReference.phone = contactReference.phone.trim();
+    }
+    if (contactReference.whatsapp !== undefined) {
+      supplier.contactReference.whatsapp = contactReference.whatsapp.trim();
+    }
+    if (contactReference.address !== undefined) {
+      supplier.contactReference.address = contactReference.address.trim();
+    }
+    if (contactReference.gstin !== undefined) {
+      supplier.contactReference.gstin = contactReference.gstin.trim().toUpperCase();
+    }
+  }
+
+  await supplier.save();
+
+  return res.status(200).json(
+    new APIResponse(200, supplier, "Supplier profile updated successfully.")
+  );
+});

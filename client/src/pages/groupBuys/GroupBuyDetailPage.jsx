@@ -161,6 +161,11 @@ export function GroupBuyDetailPage() {
       notify?.(`Quantity must be at least the buyer minimum of ${minRetailerQty} ${packUnit}.`, 'error');
       return;
     }
+    const q = Number(joinQuantity);
+    if (!Number.isInteger(q) || q <= 0) {
+      notify?.('Please enter a valid positive whole number quantity.', 'error');
+      return;
+    }
     try {
       setActionLoading(true);
       const payload = {

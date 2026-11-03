@@ -52,6 +52,8 @@ export function LandingPage({
   const [howItWorksOpen, setHowItWorksOpen] = useState(false);
   const [selectedPoolForJoin, setSelectedPoolForJoin] = useState(null);
   const [joinQuantity, setJoinQuantity] = useState(20);
+  const [joinQuantityInput, setJoinQuantityInput] = useState('20');
+  const [joinQuantityError, setJoinQuantityError] = useState(null);
 
   // ₹4,800 Calculator Interactive State
   const [calcShopA, setCalcShopA] = useState(20);
@@ -266,13 +268,24 @@ export function LandingPage({
 
   const handleOpenJoinModal = (pool) => {
     setSelectedPoolForJoin(pool);
-    setJoinQuantity(pool.moqR);
+    const initialQty = pool.moqR || 1;
+    setJoinQuantity(initialQty);
+    setJoinQuantityInput(String(initialQty));
+    setJoinQuantityError(null);
     setPaymentReceipt(null);
   };
 
   const handleConfirmJoin = () => {
     if (!selectedPoolForJoin) return;
-    const addedQty = joinQuantity;
+    const addedQty = Number(joinQuantity);
+    if (!Number.isInteger(addedQty) || addedQty <= 0) {
+      toast.error('Please enter a positive whole number quantity.');
+      return;
+    }
+    if (addedQty < selectedPoolForJoin.moqR) {
+      toast.error(`Minimum order quantity is ${selectedPoolForJoin.moqR} ${selectedPoolForJoin.unit} (20% of the wholesaler MOQ).`);
+      return;
+    }
     const poolId = selectedPoolForJoin.id;
     const poolTitle = selectedPoolForJoin.title;
     const poolUnit = selectedPoolForJoin.unit;
@@ -1413,7 +1426,7 @@ export function LandingPage({
                 <div className="flex justify-between">
                   <span className="text-midnight-muted">Retailer Minimum MOQ:</span>
                   <span className="font-semibold text-white">
-                    {selectedPoolForJoin.moqR} {selectedPoolForJoin.unit} (Step: +{selectedPoolForJoin.step})
+                    {selectedPoolForJoin.moqR} {selectedPoolForJoin.unit}
                   </span>
                 </div>
               </div>
@@ -1425,29 +1438,90 @@ export function LandingPage({
                 </label>
                 <div className="flex items-center gap-3">
                   <Button
+                    type="button"
                     variant="secondary"
                     size="icon"
-                    onClick={() =>
-                      setJoinQuantity(
-                        Math.max(selectedPoolForJoin.moqR, joinQuantity - selectedPoolForJoin.step)
-                      )
-                    }
+                    aria-label="Decrease quantity"
+                    disabled={Number(joinQuantity) <= (selectedPoolForJoin.moqR || 1)}
+                    onClick={() => {
+                      const minQ = selectedPoolForJoin.moqR || 1;
+                      const nextVal = Math.max(minQ, (Number(joinQuantity) || minQ) - 1);
+                      setJoinQuantity(nextVal);
+                      setJoinQuantityInput(String(nextVal));
+                      setJoinQuantityError(null);
+                    }}
                   >
                     <Minus className="h-4 w-4" />
                   </Button>
 
-                  <div className="flex-1 text-center font-display font-bold text-xl text-white">
-                    {joinQuantity} {selectedPoolForJoin.unit}
+                  <div className="relative flex-1">
+                    <input
+                      id="join-pool-quantity-input"
+                      type="number"
+                      aria-label="Order Quantity"
+                      value={joinQuantityInput}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setJoinQuantityInput(val);
+                        if (!val || !val.trim()) {
+                          setJoinQuantityError('Quantity is required.');
+                          return;
+                        }
+                        const num = Number(val);
+                        if (!Number.isInteger(num) || num <= 0) {
+                          setJoinQuantityError('Please enter a positive whole number.');
+                          return;
+                        }
+                        if (num < selectedPoolForJoin.moqR) {
+                          setJoinQuantityError(`Minimum order quantity is ${selectedPoolForJoin.moqR} ${selectedPoolForJoin.unit} (20% of the wholesaler MOQ).`);
+                          return;
+                        }
+                        setJoinQuantityError(null);
+                        setJoinQuantity(num);
+                      }}
+                      onBlur={() => {
+                        const num = Number(joinQuantityInput);
+                        if (!joinQuantityInput || isNaN(num) || num <= 0 || !Number.isInteger(num)) {
+                          const fallback = selectedPoolForJoin.moqR || 1;
+                          setJoinQuantity(fallback);
+                          setJoinQuantityInput(String(fallback));
+                          setJoinQuantityError(null);
+                        } else if (num < selectedPoolForJoin.moqR) {
+                          setJoinQuantityError(`Minimum order quantity is ${selectedPoolForJoin.moqR} ${selectedPoolForJoin.unit} (20% of the wholesaler MOQ).`);
+                        }
+                      }}
+                      className={`h-10 w-full text-center font-display font-bold text-xl rounded-lg border bg-midnight-surface px-3 py-2 text-white transition-colors focus:outline-none tabular-nums ${
+                        joinQuantityError
+                          ? 'border-rose-500 focus:border-rose-500 text-rose-300'
+                          : 'border-midnight-border focus:border-midnight-emerald'
+                      }`}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-normal text-midnight-muted pointer-events-none">
+                      {selectedPoolForJoin.unit}
+                    </span>
                   </div>
 
                   <Button
+                    type="button"
                     variant="secondary"
                     size="icon"
-                    onClick={() => setJoinQuantity(joinQuantity + selectedPoolForJoin.step)}
+                    aria-label="Increase quantity"
+                    onClick={() => {
+                      const minQ = selectedPoolForJoin.moqR || 1;
+                      const nextVal = (Number(joinQuantity) || minQ) + 1;
+                      setJoinQuantity(nextVal);
+                      setJoinQuantityInput(String(nextVal));
+                      setJoinQuantityError(null);
+                    }}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
+                {joinQuantityError && (
+                  <p className="text-xs text-rose-400 font-medium" data-testid="quantity-error-message">
+                    {joinQuantityError}
+                  </p>
+                )}
               </div>
 
               {/* Calculated Cost Share */}
@@ -1574,6 +1648,7 @@ export function LandingPage({
                         variant="primary"
                         onClick={handleConfirmJoin}
                         className="w-full text-xs font-semibold py-2.5"
+                        disabled={Boolean(joinQuantityError) || !joinQuantity || joinQuantity < (selectedPoolForJoin?.moqR || 1)}
                       >
                         Confirm Participation &amp; Pay (Test Mode)
                       </Button>
@@ -1610,6 +1685,7 @@ export function LandingPage({
                 variant="primary"
                 onClick={handleConfirmJoin}
                 className="text-xs font-semibold"
+                disabled={Boolean(joinQuantityError) || !joinQuantity || joinQuantity < (selectedPoolForJoin?.moqR || 1)}
               >
                 Confirm Participation &amp; Pay
               </Button>
