@@ -149,6 +149,16 @@ export const joinPool = async (
     );
   }
 
+  // If pool specifies a step multiple > 1, enforce step increment rule
+  const step = pool.quantityStepMultiple || pool.stepMultiple;
+  if (step && step > 1 && q % step !== 0) {
+    throw new ApiError(
+      400,
+      `Quantity ${q} is not a valid multiple of Step ${step}.`,
+      ["INVALID_STEP_MULTIPLE"]
+    );
+  }
+
   // Check unique active contribution per shop in this pool
   const existing = await Contribution.findOne({
     poolId,
