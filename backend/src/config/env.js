@@ -32,6 +32,14 @@ const envSchema = z.object({
     .default(process.env.JWT_SECRET || "supersecretjwtkeyforlocaldevelopmentonlychangeinprod_min32chars"),
   REFRESH_TOKEN_EXPIRY: z.string().default("10d"),
   REDIS_URL: z.string().optional(),
+  REDIS_HOST: z.string().default("127.0.0.1"),
+  REDIS_PORT: z
+    .string()
+    .default("6379")
+    .transform((val) => parseInt(val, 10)),
+  REDIS_PASSWORD: z.string().optional(),
+  RESEND_API_KEY: z.string().optional(),
+  RESEND_FROM_EMAIL: z.string().default("CoBuy AI <onboarding@resend.dev>"),
   POOL_DURATION_HOURS: z
     .string()
     .default("72")

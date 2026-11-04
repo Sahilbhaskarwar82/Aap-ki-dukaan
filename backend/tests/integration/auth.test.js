@@ -374,5 +374,85 @@ describe("Authentication & RBAC Integration Tests (PRK-03)", () => {
       expect(loginRes.status).toBe(200);
       expect(loginRes.body.success).toBe(true);
     });
+
+    it("resets password using demo master code 123456", async () => {
+      await request(app).post("/api/auth/register").send(validShopOwnerPayload);
+
+      await request(app)
+        .post("/api/auth/forgot-password")
+        .send({ email: "ramesh.gupta@kirana.com" });
+
+      const resetRes = await request(app)
+        .post("/api/auth/reset-password")
+        .send({
+          email: "ramesh.gupta@kirana.com",
+          otp: "123456",
+          newPassword: "MasterResetPassword999!",
+        });
+
+      expect(resetRes.status).toBe(200);
+      expect(resetRes.body.success).toBe(true);
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 8. 2FA & Background Email OTP Verification (Redis / Nagrik Setu Style)
+  // ───────────────────────────────────────────────────────────────────────────
+  describe("POST /api/auth/send-otp & /api/auth/verify-otp", () => {
+    it("dispatches fresh OTP via /send-otp and verifies successfully with DB OTP", async () => {
+      await request(app).post("/api/auth/register").send(validShopOwnerPayload);
+
+      const sendOtpRes = await request(app)
+        .post("/api/auth/send-otp")
+        .send({ email: "ramesh.gupta@kirana.com" });
+
+      expect(sendOtpRes.status).toBe(200);
+      expect(sendOtpRes.body.success).toBe(true);
+
+      const user = await User.findOne({ email: "ramesh.gupta@kirana.com" }).select("+verificationOtp");
+      expect(user.verificationOtp).toBeDefined();
+
+      const verifyRes = await request(app)
+        .post("/api/auth/verify-otp")
+        .send({
+          email: "ramesh.gupta@kirana.com",
+          otp: user.verificationOtp,
+        });
+
+      expect(verifyRes.status).toBe(200);
+      expect(verifyRes.body.success).toBe(true);
+      expect(verifyRes.body.data.user.email).toBe("ramesh.gupta@kirana.com");
+      expect(verifyRes.body.data).toHaveProperty("token");
+    });
+
+    it("verifies successfully with master demo OTP 123456", async () => {
+      await request(app).post("/api/auth/register").send(validShopOwnerPayload);
+
+      const verifyRes = await request(app)
+        .post("/api/auth/verify-otp")
+        .send({
+          email: "ramesh.gupta@kirana.com",
+          otp: "123456",
+        });
+
+      expect(verifyRes.status).toBe(200);
+      expect(verifyRes.body.success).toBe(true);
+      expect(verifyRes.body.data.user.isVerified).toBe(true);
+    });
+
+    it("rejects invalid OTP with 400", async () => {
+      await request(app).post("/api/auth/register").send(validShopOwnerPayload);
+
+      const verifyRes = await request(app)
+        .post("/api/auth/verify-otp")
+        .send({
+          email: "ramesh.gupta@kirana.com",
+          otp: "000000",
+        });
+
+      expect(verifyRes.status).toBe(400);
+      expect(verifyRes.body.success).toBe(false);
+      expect(verifyRes.body.errors).toContain("INVALID_OTP");
+    });
   });
 });

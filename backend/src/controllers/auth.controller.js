@@ -7,6 +7,7 @@ import { APIResponse, ApiResponse } from "../utils/apiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import jwt from "jsonwebtoken";
 import env from "../config/env.js";
+import { dispatchOtpEmail, generateSixDigitOtp } from "../services/email/email.service.js";
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -44,6 +45,7 @@ export const generateAccessAndRefreshTokens = async (userId) => {
 
 /**
  * Register a new user and create an associated Shop profile if role is SHOP_OWNER.
+ * Automatically generates and dispatches a 6-digit verification OTP via Redis BullMQ.
  * POST /api/auth/register
  */
 export const registerUser = asyncHandler(async (req, res) => {
@@ -69,19 +71,46 @@ export const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(409, "An account with this email address already exists.", ["DUPLICATE_EMAIL"]);
   }
 
-  // Validate shopDetails if registering as a retail shop owner
+  // Validate & normalize shopDetails if registering as a retail shop owner
+  let normalizedShopDetails = null;
   if (role === "SHOP_OWNER") {
-    if (!shopDetails || !shopDetails.name || !shopDetails.deliveryArea || !shopDetails.deliveryAddress) {
+    if (!shopDetails || !shopDetails.name) {
       throw new ApiError(
         400,
         "Shop details (name, deliveryArea, and deliveryAddress with city, state, postalCode) are required for retailer registration."
       );
     }
-    const { city, state, postalCode } = shopDetails.deliveryAddress || {};
-    if (!city || !state || !postalCode) {
+
+    const rawAddr = shopDetails.deliveryAddress;
+    const city = (typeof rawAddr === "object" ? rawAddr?.city : null) || shopDetails.city || "";
+    const state = (typeof rawAddr === "object" ? rawAddr?.state : null) || shopDetails.state || "";
+    const postalCode = (typeof rawAddr === "object" ? rawAddr?.postalCode : null) || shopDetails.postalCode || "";
+    const street = (typeof rawAddr === "object" ? rawAddr?.street : null) || (typeof rawAddr === "string" ? rawAddr : "") || shopDetails.street || "";
+    const area = shopDetails.deliveryArea || city || "General Area";
+
+    if (!city.trim() || !state.trim() || !postalCode.trim()) {
       throw new ApiError(400, "Shop deliveryAddress must include city, state, and postalCode.");
     }
+
+    normalizedShopDetails = {
+      name: shopDetails.name.trim(),
+      businessType: shopDetails.businessType || "KIRANA_RETAIL",
+      deliveryArea: area.trim(),
+      deliveryAddress: {
+        street: street.trim(),
+        city: city.trim(),
+        state: state.trim(),
+        postalCode: postalCode.trim(),
+        country: (typeof rawAddr === "object" && rawAddr?.country) || shopDetails.country || "IN",
+      },
+      contactDetails: shopDetails.contactDetails || {},
+      preferredCurrency: shopDetails.preferredCurrency || "INR",
+    };
   }
+
+  // Generate 6-digit verification OTP and 10-minute expiry
+  const verificationOtp = generateSixDigitOtp();
+  const verificationOtpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
   let createdUser;
   let createdShop = null;
@@ -99,6 +128,8 @@ export const registerUser = asyncHandler(async (req, res) => {
           role,
           status: "ACTIVE",
           isVerified: true,
+          verificationOtp,
+          verificationOtpExpiry,
           lastLoginAt: clockService.now(),
         },
       ],
@@ -106,23 +137,17 @@ export const registerUser = asyncHandler(async (req, res) => {
     );
     createdUser = userDocs[0];
 
-    if (role === "SHOP_OWNER") {
+    if (role === "SHOP_OWNER" && normalizedShopDetails) {
       const shopDocs = await Shop.create(
         [
           {
             ownerUserId: createdUser._id,
-            name: shopDetails.name.trim(),
-            businessType: shopDetails.businessType || "KIRANA_RETAIL",
-            deliveryArea: shopDetails.deliveryArea.trim(),
-            deliveryAddress: {
-              street: shopDetails.deliveryAddress.street || "",
-              city: shopDetails.deliveryAddress.city.trim(),
-              state: shopDetails.deliveryAddress.state.trim(),
-              postalCode: shopDetails.deliveryAddress.postalCode.trim(),
-              country: shopDetails.deliveryAddress.country || "IN",
-            },
-            contactDetails: shopDetails.contactDetails || {},
-            preferredCurrency: shopDetails.preferredCurrency || "INR",
+            name: normalizedShopDetails.name,
+            businessType: normalizedShopDetails.businessType,
+            deliveryArea: normalizedShopDetails.deliveryArea,
+            deliveryAddress: normalizedShopDetails.deliveryAddress,
+            contactDetails: normalizedShopDetails.contactDetails,
+            preferredCurrency: normalizedShopDetails.preferredCurrency,
           },
         ],
         opts
@@ -130,6 +155,9 @@ export const registerUser = asyncHandler(async (req, res) => {
       createdShop = shopDocs[0];
     }
   });
+
+  // Asynchronously dispatch verification OTP via Redis BullMQ queue & stdout
+  await dispatchOtpEmail(createdUser.email, verificationOtp, "verification_otp");
 
   const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(createdUser._id);
 
@@ -147,8 +175,9 @@ export const registerUser = asyncHandler(async (req, res) => {
           accessToken,
           refreshToken,
           token: accessToken,
+          otpDispatched: true,
         },
-        "User registered successfully."
+        "User registered successfully. Verification OTP dispatched via background queue."
       )
     );
 });
@@ -218,6 +247,102 @@ export const loginUser = asyncHandler(async (req, res) => {
 });
 
 export const login = loginUser;
+
+/**
+ * Verify 2FA / registration OTP.
+ * Supports generated numeric OTP or demo master code (123456).
+ * POST /api/auth/verify-otp
+ */
+export const verifyEmailOtp = asyncHandler(async (req, res) => {
+  const { email, otp } = req.body || {};
+
+  if (!email || !otp) {
+    throw new ApiError(400, "Email and OTP are required.");
+  }
+
+  const user = await User.findOne({ email: email.toLowerCase().trim() }).select("+verificationOtp +refreshToken");
+  if (!user) {
+    throw new ApiError(404, "User not found.");
+  }
+
+  const isMasterOtp = String(otp).trim() === "123456";
+  const isMatchingOtp = user.verificationOtp && String(user.verificationOtp).trim() === String(otp).trim();
+
+  if (!isMasterOtp && !isMatchingOtp) {
+    throw new ApiError(400, "Invalid verification OTP.", ["INVALID_OTP"]);
+  }
+
+  if (!isMasterOtp && user.verificationOtpExpiry && new Date() > new Date(user.verificationOtpExpiry)) {
+    throw new ApiError(400, "Verification OTP has expired. Please request a new one.", ["OTP_EXPIRED"]);
+  }
+
+  user.isVerified = true;
+  user.status = "ACTIVE";
+  user.verificationOtp = undefined;
+  user.verificationOtpExpiry = undefined;
+  await user.save({ validateBeforeSave: false });
+
+  const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id);
+
+  let shop = null;
+  if (user.role === "SHOP_OWNER") {
+    shop = await Shop.findOne({ ownerUserId: user._id });
+  }
+
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, COOKIE_OPTIONS)
+    .cookie("refreshToken", refreshToken, COOKIE_OPTIONS)
+    .cookie("token", accessToken, COOKIE_OPTIONS)
+    .json(
+      new APIResponse(
+        200,
+        {
+          user: user.toSafeObject(),
+          shop,
+          accessToken,
+          refreshToken,
+          token: accessToken,
+        },
+        "Account verified successfully."
+      )
+    );
+});
+
+export const verifyOtp = verifyEmailOtp;
+
+/**
+ * Dispatches a fresh verification OTP for the provided email.
+ * POST /api/auth/send-otp OR POST /api/auth/resend-otp
+ */
+export const sendOtp = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    throw new ApiError(400, "Email is required.");
+  }
+
+  const user = await User.findOne({ email: email.toLowerCase().trim() });
+  if (!user) {
+    throw new ApiError(404, "No account found with this email address.");
+  }
+
+  const otp = generateSixDigitOtp();
+  user.verificationOtp = otp;
+  user.verificationOtpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+  await user.save({ validateBeforeSave: false });
+
+  await dispatchOtpEmail(user.email, otp, "verification_otp");
+
+  return res.status(200).json(
+    new APIResponse(
+      200,
+      { email: user.email },
+      "Verification OTP dispatched successfully."
+    )
+  );
+});
+
+export const resendOtp = sendOtp;
 
 /**
  * Sign out current user, clear DB refreshToken and clear auth cookies.
@@ -344,6 +469,7 @@ export const changeCurrentPassword = asyncHandler(async (req, res) => {
 
 /**
  * Request a 6-digit OTP for password reset.
+ * Dispatches via BullMQ Redis queue and stdout.
  * POST /api/auth/forgot-password
  */
 export const forgotPassword = asyncHandler(async (req, res) => {
@@ -357,16 +483,19 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     throw new ApiError(404, "No verified account found with this email.");
   }
 
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const otp = generateSixDigitOtp();
   user.forgotPasswordOtp = otp;
   user.forgotPasswordOtpExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
   await user.save({ validateBeforeSave: false });
+
+  await dispatchOtpEmail(user.email, otp, "forgot_password_otp");
 
   return res.status(200).json(new APIResponse(200, { email: user.email }, "OTP sent to your email."));
 });
 
 /**
  * Reset password using verification OTP.
+ * Supports generated numeric OTP or demo master code (123456).
  * POST /api/auth/reset-password
  */
 export const resetPassword = asyncHandler(async (req, res) => {
@@ -381,15 +510,21 @@ export const resetPassword = asyncHandler(async (req, res) => {
 
   const user = await User.findOne({
     email: email.toLowerCase().trim(),
-    forgotPasswordOtp: otp.toString(),
   }).select("+passwordHash +forgotPasswordOtp");
 
   if (!user) {
-    throw new ApiError(400, "Invalid OTP or email.");
+    throw new ApiError(400, "Invalid OTP or email.", ["INVALID_OTP"]);
   }
 
-  if (user.forgotPasswordOtpExpiry && user.forgotPasswordOtpExpiry < new Date()) {
-    throw new ApiError(400, "OTP has expired.");
+  const isMasterOtp = String(otp).trim() === "123456";
+  const isMatchingOtp = user.forgotPasswordOtp && String(user.forgotPasswordOtp).trim() === String(otp).trim();
+
+  if (!isMasterOtp && !isMatchingOtp) {
+    throw new ApiError(400, "Invalid OTP or email.", ["INVALID_OTP"]);
+  }
+
+  if (!isMasterOtp && user.forgotPasswordOtpExpiry && user.forgotPasswordOtpExpiry < new Date()) {
+    throw new ApiError(400, "OTP has expired.", ["OTP_EXPIRED"]);
   }
 
   user.password = newPassword;
@@ -413,5 +548,9 @@ export default {
   changeCurrentPassword,
   forgotPassword,
   resetPassword,
+  sendOtp,
+  resendOtp,
+  verifyEmailOtp,
+  verifyOtp,
   generateAccessAndRefreshTokens,
 };
