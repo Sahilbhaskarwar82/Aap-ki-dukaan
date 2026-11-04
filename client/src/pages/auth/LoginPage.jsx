@@ -2,33 +2,23 @@
  * CoBuy AI — LoginPage (HIM-04)
  *
  * Features:
- *  - Email / password form with client-side validation
- *  - Show/hide password toggle
- *  - Loading state during submission
- *  - Backend error messages displayed inline
- *  - Toast notification on success
- *  - Quick Demo Sign-In Panel (calls real backend login)
- *  - Link to registration
- *  - Accessible labels and keyboard controls
- *  - Responsive layout
- *
- * Demo credentials sourced from Docs/database_schemas.md seeded dataset.
- * Demo sign-in calls the real backend login API — no bypass.
+ *  - Dual Mode: Standard Password Authentication & Passwordless OTP Sign-in (Redis/BullMQ)
+ *  - "Forgot Password?" navigation link & flow
+ *  - 6 Demo Accounts panel (instant switch for evaluators)
+ *  - Tabular layout, password visibility toggle, accessible alerts
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useInRouterContext } from 'react-router-dom';
-import { Eye, EyeOff, Zap, ShoppingBag, ArrowRight } from 'lucide-react';
+import { Eye, EyeOff, ShoppingBag, ArrowRight, Zap, KeyRound, Lock, RotateCw } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Badge } from '@/components/ui/Badge';
 import { Alert } from '@/components/ui/Alert';
+import { Badge } from '@/components/ui/Badge';
 import { toast } from '@/components/ui/Toast';
 import { useAuth } from '@/context/AuthContext';
 
-// ── Demo Accounts ─────────────────────────────────────────────────────────────
-// Credentials from Docs/database_schemas.md — seeded by SAH-10 seedDemoData.js
-// These accounts only work when the backend seeder has been executed.
+// ── Demo Accounts from Seeder (SAH-10) ─────────────────────────────────────────
 const DEMO_ACCOUNTS = [
   {
     label: 'Shop A',
@@ -80,7 +70,6 @@ const DEMO_ACCOUNTS = [
   },
 ];
 
-// ── Role badge labels ─────────────────────────────────────────────────────────
 const ROLE_LABELS = {
   SHOP_OWNER: 'Shop Owner',
   SUPPLIER: 'Wholesaler',
@@ -88,7 +77,6 @@ const ROLE_LABELS = {
   REVIEWER: 'Reviewer',
 };
 
-// ── Validation ────────────────────────────────────────────────────────────────
 function validateLoginForm({ email, password }) {
   const errors = {};
   if (!email.trim()) {
@@ -102,7 +90,6 @@ function validateLoginForm({ email, password }) {
   return errors;
 }
 
-// ── Back to Marketplace Link ──────────────────────────────────────────────────
 function BackToMarketplaceLink({ onNavigateToMarketplace }) {
   const inRouter = useInRouterContext();
 
@@ -133,23 +120,70 @@ function BackToMarketplaceLink({ onNavigateToMarketplace }) {
   );
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+function ForgotPasswordLink({ onNavigateToForgotPassword }) {
+  const inRouter = useInRouterContext();
+
+  const handleClick = (e) => {
+    if (typeof onNavigateToForgotPassword === 'function') {
+      e.preventDefault();
+      onNavigateToForgotPassword();
+    } else if (!inRouter) {
+      e.preventDefault();
+    }
+  };
+
+  const linkClasses = "text-xs text-midnight-red hover:underline focus-visible:outline-none";
+
+  if (inRouter) {
+    return (
+      <Link to="/forgot-password" onClick={handleClick} className={linkClasses}>
+        Forgot password?
+      </Link>
+    );
+  }
+
+  return (
+    <a href="/forgot-password" onClick={handleClick} className={linkClasses}>
+      Forgot password?
+    </a>
+  );
+}
+
 export default function LoginPage({
   onNavigateToRegister,
   onLoginSuccess,
   onNavigateToMarketplace,
+  onNavigateToForgotPassword,
 }) {
-  const { login } = useAuth();
+  const { login, loginWithOtp, sendLoginOtp } = useAuth();
 
-  const [email, setEmail]           = useState('');
-  const [password, setPassword]     = useState('');
+  // Mode: 'PASSWORD' or 'OTP'
+  const [authMode, setAuthMode] = useState('PASSWORD');
+
+  // Form fields
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [fieldErrors, setFieldErrors]   = useState({});
-  const [serverError, setServerError]   = useState('');
-  const [loading, setLoading]           = useState(false);
-  const [demoLoading, setDemoLoading]   = useState(null); // index of demo account signing in
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [serverError, setServerError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(null);
 
-  // ── Form submit ─────────────────────────────────────────────────────────────
+  // OTP Login state
+  const [otpSent, setOtpSent] = useState(false);
+  const [loginOtp, setLoginOtp] = useState('');
+  const [cooldown, setCooldown] = useState(0);
+  const [resending, setResending] = useState(false);
+
+  useEffect(() => {
+    let timer;
+    if (cooldown > 0) {
+      timer = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [cooldown]);
+
+  // ── Password Sign-in Submit ────────────────────────────────────────────────
   async function handleSubmit(e) {
     e.preventDefault();
     setServerError('');
@@ -174,7 +208,84 @@ export default function LoginPage({
     }
   }
 
-  // ── Demo sign-in ────────────────────────────────────────────────────────────
+  // ── Send Login OTP ─────────────────────────────────────────────────────────
+  async function handleSendLoginOtp(e) {
+    e?.preventDefault();
+    setServerError('');
+    setFieldErrors({});
+
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      setFieldErrors({ email: 'Please enter a valid email address.' });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await sendLoginOtp(cleanEmail);
+      if (result.success) {
+        setOtpSent(true);
+        setCooldown(30);
+        toast.success('Sign-in OTP dispatched!', {
+          description: `Check your inbox (${cleanEmail}) or server logs`,
+        });
+      } else {
+        setServerError(result.error || 'Failed to dispatch login OTP.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Resend Login OTP ───────────────────────────────────────────────────────
+  async function handleResendLoginOtp() {
+    if (cooldown > 0 || resending || !email.trim()) return;
+    setResending(true);
+    setServerError('');
+    try {
+      const result = await sendLoginOtp(email.trim().toLowerCase());
+      if (result.success) {
+        setCooldown(45);
+        toast.success('Fresh OTP sent to your email!');
+      } else {
+        setServerError(result.error || 'Failed to resend code.');
+      }
+    } finally {
+      setResending(false);
+    }
+  }
+
+  // ── OTP Sign-in Submit ─────────────────────────────────────────────────────
+  async function handleOtpSubmit(e) {
+    e.preventDefault();
+    setServerError('');
+
+    if (!loginOtp.trim()) {
+      setFieldErrors({ otp: 'Please enter the 6-digit OTP code.' });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await loginWithOtp({
+        email: email.trim().toLowerCase(),
+        otp: loginOtp.trim(),
+      });
+
+      if (result.success) {
+        toast.success('Welcome back!', { description: `Signed in as ${result.user.name}` });
+        if (typeof onLoginSuccess === 'function') {
+          onLoginSuccess(result.user);
+        }
+      } else {
+        setServerError(result.error || 'Invalid or expired OTP code.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Demo Sign-in ───────────────────────────────────────────────────────────
   async function handleDemoSignIn(account, index) {
     setServerError('');
     setFieldErrors({});
@@ -220,8 +331,34 @@ export default function LoginPage({
           </p>
         </div>
 
-        {/* ── Login form ── */}
+        {/* ── Login Form Card ── */}
         <div className="bg-midnight-card border border-midnight-border rounded-xl p-8 shadow-lg shadow-black/40 space-y-5">
+
+          {/* ── Auth Mode Selector Tabs ── */}
+          <div className="flex border-b border-midnight-border/60 pb-3 gap-2">
+            <button
+              type="button"
+              onClick={() => { setAuthMode('PASSWORD'); setServerError(''); }}
+              className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+                authMode === 'PASSWORD'
+                  ? 'bg-midnight-surface text-white border border-midnight-border shadow-xs'
+                  : 'text-midnight-muted hover:text-white'
+              }`}
+            >
+              Password Sign-In
+            </button>
+            <button
+              type="button"
+              onClick={() => { setAuthMode('OTP'); setServerError(''); }}
+              className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+                authMode === 'OTP'
+                  ? 'bg-midnight-surface text-white border border-midnight-border shadow-xs'
+                  : 'text-midnight-muted hover:text-white'
+              }`}
+            >
+              Sign in with OTP ⚡
+            </button>
+          </div>
 
           {serverError && (
             <Alert variant="error" role="alert">
@@ -229,63 +366,161 @@ export default function LoginPage({
             </Alert>
           )}
 
-          <form onSubmit={handleSubmit} noValidate className="space-y-5">
-            <Input
-              id="login-email"
-              type="email"
-              label="Email address"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => { setEmail(e.target.value); setFieldErrors((p) => ({ ...p, email: '' })); }}
-              error={fieldErrors.email}
-              autoComplete="username"
-              disabled={loading || demoLoading !== null}
-              aria-required="true"
-            />
-
-            <div className="relative">
+          {/* ── MODE 1: Standard Password Sign-in ── */}
+          {authMode === 'PASSWORD' && (
+            <form onSubmit={handleSubmit} noValidate className="space-y-4">
               <Input
-                id="login-password"
-                type={showPassword ? 'text' : 'password'}
-                label="Password"
-                placeholder="Your password"
-                value={password}
-                onChange={(e) => { setPassword(e.target.value); setFieldErrors((p) => ({ ...p, password: '' })); }}
-                error={fieldErrors.password}
-                autoComplete="current-password"
+                id="login-email"
+                type="email"
+                label="Email address"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setFieldErrors((p) => ({ ...p, email: '' })); }}
+                error={fieldErrors.email}
+                autoComplete="username"
                 disabled={loading || demoLoading !== null}
                 aria-required="true"
               />
-              <button
-                type="button"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-                onClick={() => setShowPassword((v) => !v)}
-                className="absolute right-3 top-8 text-midnight-muted hover:text-midnight-text transition-colors"
-                tabIndex={0}
-              >
-                {showPassword
-                  ? <EyeOff className="h-4 w-4" aria-hidden="true" />
-                  : <Eye className="h-4 w-4" aria-hidden="true" />
-                }
-              </button>
-            </div>
 
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              className="w-full"
-              loading={loading}
-              disabled={loading || demoLoading !== null}
-              aria-label="Sign in to your account"
-            >
-              {loading ? 'Signing in…' : 'Sign in'}
-              {!loading && <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />}
-            </Button>
-          </form>
+              <div className="space-y-1">
+                <div className="relative">
+                  <Input
+                    id="login-password"
+                    type={showPassword ? 'text' : 'password'}
+                    label="Password"
+                    placeholder="Your password"
+                    value={password}
+                    onChange={(e) => { setPassword(e.target.value); setFieldErrors((p) => ({ ...p, password: '' })); }}
+                    error={fieldErrors.password}
+                    autoComplete="current-password"
+                    disabled={loading || demoLoading !== null}
+                    aria-required="true"
+                  />
+                  <button
+                    type="button"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-3 top-8 text-midnight-muted hover:text-midnight-text transition-colors"
+                    tabIndex={0}
+                  >
+                    {showPassword
+                      ? <EyeOff className="h-4 w-4" aria-hidden="true" />
+                      : <Eye className="h-4 w-4" aria-hidden="true" />
+                    }
+                  </button>
+                </div>
+
+                <div className="flex justify-end pt-1">
+                  <ForgotPasswordLink onNavigateToForgotPassword={onNavigateToForgotPassword} />
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                variant="primary"
+                size="lg"
+                className="w-full mt-2"
+                loading={loading}
+                disabled={loading || demoLoading !== null}
+                aria-label="Sign in to your account"
+              >
+                {loading ? 'Signing in…' : 'Sign in'}
+                {!loading && <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />}
+              </Button>
+            </form>
+          )}
+
+          {/* ── MODE 2: Passwordless OTP Sign-in ── */}
+          {authMode === 'OTP' && (
+            <div className="space-y-4">
+              {!otpSent ? (
+                <form onSubmit={handleSendLoginOtp} className="space-y-4">
+                  <Input
+                    id="otp-login-email"
+                    type="email"
+                    label="Registered email address"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => { setEmail(e.target.value); setFieldErrors((p) => ({ ...p, email: '' })); }}
+                    error={fieldErrors.email}
+                    autoComplete="email"
+                    disabled={loading}
+                    required
+                    autoFocus
+                  />
+                  <p className="text-xs text-midnight-muted">
+                    We will send a 6-digit one-time code to your registered email address.
+                  </p>
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="lg"
+                    className="w-full"
+                    loading={loading}
+                  >
+                    Send 6-Digit Login Code
+                  </Button>
+                </form>
+              ) : (
+                <form onSubmit={handleOtpSubmit} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <label className="block text-xs font-semibold text-midnight-text">
+                        Enter 6-Digit OTP Code
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleResendLoginOtp}
+                        disabled={cooldown > 0 || resending}
+                        className="text-xs text-midnight-red hover:underline disabled:opacity-50"
+                      >
+                        {resending ? 'Sending...' : cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend Code'}
+                      </button>
+                    </div>
+                    <Input
+                      id="otp-login-code"
+                      type="text"
+                      maxLength={6}
+                      value={loginOtp}
+                      onChange={(e) => {
+                        setLoginOtp(e.target.value.replace(/\D/g, ''));
+                        setFieldErrors((p) => ({ ...p, otp: '' }));
+                      }}
+                      error={fieldErrors.otp}
+                      placeholder="123456"
+                      className="text-center font-mono tracking-widest text-lg"
+                      autoFocus
+                      required
+                    />
+                    <p className="text-[11px] text-midnight-muted">
+                      Code sent to <span className="text-white font-medium">{email}</span>. (Demo code: <code className="text-white font-mono">123456</code>).
+                    </p>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="lg"
+                    className="w-full"
+                    loading={loading}
+                  >
+                    Verify & Launch Workspace
+                  </Button>
+
+                  <button
+                    type="button"
+                    onClick={() => { setOtpSent(false); setLoginOtp(''); }}
+                    className="w-full text-center text-xs text-midnight-muted hover:text-white pt-1"
+                  >
+                    ← Use a different email
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
 
           {/* ── Register link ── */}
-          <p className="text-center text-sm text-midnight-muted">
+          <p className="text-center text-sm text-midnight-muted pt-2 border-t border-midnight-border/40">
             Don&apos;t have an account?{' '}
             <button
               type="button"

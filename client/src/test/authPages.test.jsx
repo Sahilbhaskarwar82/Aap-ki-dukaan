@@ -24,11 +24,31 @@ vi.mock('@/context/AuthContext', () => ({
 import { useAuth } from '@/context/AuthContext';
 import LoginPage from '@/pages/auth/LoginPage';
 import RegisterPage from '@/pages/auth/RegisterPage';
+import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function setupAuth({ login = vi.fn(), register = vi.fn() } = {}) {
-  useAuth.mockReturnValue({ login, register });
-  return { login, register };
+function setupAuth({
+  login = vi.fn(),
+  register = vi.fn(),
+  loginWithOtp = vi.fn(),
+  sendLoginOtp = vi.fn(),
+  verifyOtp = vi.fn(),
+  resendOtp = vi.fn(),
+  forgotPassword = vi.fn(),
+  resetPassword = vi.fn(),
+} = {}) {
+  const authMethods = {
+    login,
+    register,
+    loginWithOtp,
+    sendLoginOtp,
+    verifyOtp,
+    resendOtp,
+    forgotPassword,
+    resetPassword,
+  };
+  useAuth.mockReturnValue(authMethods);
+  return authMethods;
 }
 
 const onNavigateToRegister = vi.fn();
@@ -354,5 +374,240 @@ describe('HIM-04: RegisterPage', () => {
     await waitFor(() => expect(submitBtn).toBeDisabled());
 
     await act(async () => resolve({ success: false, error: 'Error' }));
+  });
+
+  it('enters Step 2 OTP verification upon registration, verifies OTP, and triggers immediate dashboard login', async () => {
+    const { register, verifyOtp } = setupAuth({
+      register: vi.fn().mockResolvedValue({
+        success: true,
+        user: { id: 'u1', name: 'Ramesh Gupta', role: 'SHOP_OWNER' },
+      }),
+      verifyOtp: vi.fn().mockResolvedValue({
+        success: true,
+        user: { id: 'u1', name: 'Ramesh Gupta', role: 'SHOP_OWNER' },
+      }),
+    });
+
+    render(<RegisterPage onNavigateToLogin={onNavigateToLogin} onRegisterSuccess={onRegisterSuccess} />);
+
+    await userEvent.type(screen.getByLabelText(/full name/i), 'Ramesh Gupta');
+    await userEvent.type(screen.getByLabelText(/email address/i), 'ramesh@kirana.com');
+    await userEvent.type(screen.getByLabelText(/^password$/i), 'Password123!');
+    await userEvent.type(document.querySelector('#reg-confirm-password'), 'Password123!');
+    await userEvent.type(screen.getByLabelText(/business name/i), 'Gupta Provisions');
+    await userEvent.type(screen.getByLabelText(/delivery area/i), 'Aliganj');
+    await userEvent.type(screen.getByLabelText(/city/i), 'Lucknow');
+    await userEvent.type(screen.getByLabelText(/state/i), 'UP');
+    await userEvent.type(screen.getByLabelText(/pin code/i), '226024');
+
+    await userEvent.click(screen.getByRole('button', { name: /create your account/i }));
+
+    // Verify Step 2 interactive OTP screen is shown
+    expect(await screen.findByText(/Verify Your Email/i)).toBeInTheDocument();
+    expect(screen.getByText('ramesh@kirana.com')).toBeInTheDocument();
+
+    const otpInput = document.querySelector('#reg-otp-input');
+    expect(otpInput).toBeInTheDocument();
+
+    // Type 6-digit OTP code and submit
+    await userEvent.type(otpInput, '123456');
+    await userEvent.click(screen.getByRole('button', { name: /Verify & Launch Dashboard/i }));
+
+    await waitFor(() => expect(verifyOtp).toHaveBeenCalledWith({
+      email: 'ramesh@kirana.com',
+      otp: '123456',
+    }));
+
+    await waitFor(() => expect(onRegisterSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Ramesh Gupta', role: 'SHOP_OWNER' })
+    ));
+  });
+
+  it('allows clicking "Continue directly to Workspace" in Step 2 to bypass OTP entry if desired', async () => {
+    setupAuth({
+      register: vi.fn().mockResolvedValue({
+        success: true,
+        user: { id: 'u2', name: 'Anita Verma', role: 'SHOP_OWNER' },
+      }),
+    });
+
+    render(<RegisterPage onNavigateToLogin={onNavigateToLogin} onRegisterSuccess={onRegisterSuccess} />);
+
+    await userEvent.type(screen.getByLabelText(/full name/i), 'Anita Verma');
+    await userEvent.type(screen.getByLabelText(/email address/i), 'anita@kirana.com');
+    await userEvent.type(screen.getByLabelText(/^password$/i), 'Password123!');
+    await userEvent.type(document.querySelector('#reg-confirm-password'), 'Password123!');
+    await userEvent.type(screen.getByLabelText(/business name/i), 'Anita Superstore');
+    await userEvent.type(screen.getByLabelText(/delivery area/i), 'Gomti Nagar');
+    await userEvent.type(screen.getByLabelText(/city/i), 'Lucknow');
+    await userEvent.type(screen.getByLabelText(/state/i), 'UP');
+    await userEvent.type(screen.getByLabelText(/pin code/i), '226010');
+
+    await userEvent.click(screen.getByRole('button', { name: /create your account/i }));
+
+    expect(await screen.findByText(/Verify Your Email/i)).toBeInTheDocument();
+
+    const directBtn = screen.getByRole('button', { name: /Continue directly to Workspace/i });
+    await userEvent.click(directBtn);
+
+    expect(onRegisterSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Anita Verma' })
+    );
+  });
+});
+
+// ── LoginPage OTP Mode tests ──────────────────────────────────────────────────
+describe('LoginPage: Sign in with OTP & Passwordless Flow', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders "Sign in with OTP" tab and switches between Password and OTP modes', async () => {
+    setupAuth();
+    render(<LoginPage onNavigateToRegister={onNavigateToRegister} />);
+
+    const otpTab = screen.getByRole('button', { name: /Sign in with OTP/i });
+    expect(otpTab).toBeInTheDocument();
+
+    await userEvent.click(otpTab);
+    expect(screen.getByRole('button', { name: /Send 6-Digit Login Code/i })).toBeInTheDocument();
+
+    const pwdTab = screen.getByRole('button', { name: /Password Sign-In/i });
+    await userEvent.click(pwdTab);
+    expect(screen.getByRole('button', { name: /Sign in to your account/i })).toBeInTheDocument();
+  });
+
+  it('requests OTP and verifies successfully to complete passwordless login', async () => {
+    const { sendLoginOtp, loginWithOtp } = setupAuth({
+      sendLoginOtp: vi.fn().mockResolvedValue({ success: true }),
+      loginWithOtp: vi.fn().mockResolvedValue({
+        success: true,
+        user: { name: 'Prakhar Gupta', role: 'SHOP_OWNER' },
+      }),
+    });
+
+    render(<LoginPage onNavigateToRegister={onNavigateToRegister} onLoginSuccess={onLoginSuccess} />);
+
+    // Switch to OTP tab
+    await userEvent.click(screen.getByRole('button', { name: /Sign in with OTP/i }));
+
+    // Enter email
+    const emailInput = screen.getByLabelText(/Registered email address/i);
+    await userEvent.type(emailInput, 'prakhar@kirana.com');
+
+    // Click send OTP
+    await userEvent.click(screen.getByRole('button', { name: /Send 6-Digit Login Code/i }));
+
+    await waitFor(() => expect(sendLoginOtp).toHaveBeenCalledWith('prakhar@kirana.com'));
+
+    // Step 2: OTP input rendered
+    const otpInput = await screen.findByPlaceholderText('123456');
+    expect(otpInput).toBeInTheDocument();
+
+    // Type 6-digit code
+    await userEvent.type(otpInput, '123456');
+    await userEvent.click(screen.getByRole('button', { name: /Verify & Launch Workspace/i }));
+
+    await waitFor(() => expect(loginWithOtp).toHaveBeenCalledWith({
+      email: 'prakhar@kirana.com',
+      otp: '123456',
+    }));
+
+    await waitFor(() => expect(onLoginSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Prakhar Gupta' })
+    ));
+  });
+});
+
+// ── ForgotPasswordPage tests ──────────────────────────────────────────────────
+describe('ForgotPasswordPage: 2-Step Password Reset Flow', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders Step 1 with email input and dispatches reset OTP', async () => {
+    const { forgotPassword } = setupAuth({
+      forgotPassword: vi.fn().mockResolvedValue({ success: true }),
+    });
+
+    render(
+      <MemoryRouter>
+        <ForgotPasswordPage onNavigateToLogin={onNavigateToLogin} />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText(/Reset Your Password/i)).toBeInTheDocument();
+    const emailInput = screen.getByPlaceholderText(/e\.g\. store@kirana\.in/i);
+
+    await userEvent.type(emailInput, 'user@kirana.com');
+    await userEvent.click(screen.getByRole('button', { name: /Send 6-Digit Reset Code/i }));
+
+    await waitFor(() => expect(forgotPassword).toHaveBeenCalledWith('user@kirana.com'));
+    expect(await screen.findByText(/Enter Verification Code/i)).toBeInTheDocument();
+  });
+
+  it('validates password mismatch in Step 2', async () => {
+    setupAuth({
+      forgotPassword: vi.fn().mockResolvedValue({ success: true }),
+    });
+
+    render(
+      <MemoryRouter>
+        <ForgotPasswordPage onNavigateToLogin={onNavigateToLogin} />
+      </MemoryRouter>
+    );
+
+    const emailInput = screen.getByPlaceholderText(/e\.g\. store@kirana\.in/i);
+    await userEvent.type(emailInput, 'user@kirana.com');
+    await userEvent.click(screen.getByRole('button', { name: /Send 6-Digit Reset Code/i }));
+
+    expect(await screen.findByText(/Enter Verification Code/i)).toBeInTheDocument();
+
+    const otpInput = screen.getByPlaceholderText('123456');
+    await userEvent.type(otpInput, '123456');
+
+    const [pwdInput, confirmPwdInput] = screen.getAllByPlaceholderText('••••••••');
+    await userEvent.type(pwdInput, 'NewPassword123!');
+    await userEvent.type(confirmPwdInput, 'MismatchPassword999!');
+
+    await userEvent.click(screen.getByRole('button', { name: /Reset Password & Continue/i }));
+    expect(await screen.findByText(/Passwords do not match/i)).toBeInTheDocument();
+  });
+
+  it('successfully resets password and renders confirmation view', async () => {
+    const { forgotPassword, resetPassword, login } = setupAuth({
+      forgotPassword: vi.fn().mockResolvedValue({ success: true }),
+      resetPassword: vi.fn().mockResolvedValue({ success: true }),
+      login: vi.fn().mockResolvedValue({ success: true }),
+    });
+
+    render(
+      <MemoryRouter>
+        <ForgotPasswordPage onNavigateToLogin={onNavigateToLogin} />
+      </MemoryRouter>
+    );
+
+    const emailInput = screen.getByPlaceholderText(/e\.g\. store@kirana\.in/i);
+    await userEvent.type(emailInput, 'user@kirana.com');
+    await userEvent.click(screen.getByRole('button', { name: /Send 6-Digit Reset Code/i }));
+
+    expect(await screen.findByText(/Enter Verification Code/i)).toBeInTheDocument();
+
+    const otpInput = screen.getByPlaceholderText('123456');
+    await userEvent.type(otpInput, '123456');
+
+    const [pwdInput, confirmPwdInput] = screen.getAllByPlaceholderText('••••••••');
+    await userEvent.type(pwdInput, 'BrandNewPass123!');
+    await userEvent.type(confirmPwdInput, 'BrandNewPass123!');
+
+    await userEvent.click(screen.getByRole('button', { name: /Reset Password & Continue/i }));
+
+    await waitFor(() => expect(resetPassword).toHaveBeenCalledWith({
+      email: 'user@kirana.com',
+      otp: '123456',
+      newPassword: 'BrandNewPass123!',
+    }));
+
+    expect(await screen.findByText(/Password Reset Complete/i)).toBeInTheDocument();
   });
 });

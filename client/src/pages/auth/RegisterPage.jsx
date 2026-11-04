@@ -2,20 +2,20 @@
  * CoBuy AI — RegisterPage (HIM-04)
  *
  * Features:
- *  - Name, email, password, confirm-password fields
- *  - Role selection: SHOP_OWNER or SUPPLIER only (backend allows; ADMIN/REVIEWER excluded)
- *  - SHOP_OWNER requires shop details (name, business type, delivery area, city, state, postal code)
- *  - Client-side validation
- *  - Backend validation error display
- *  - Loading state during submission
- *  - Toast on success
- *  - Link back to login
- *  - Responsive layout
+ *  - Step 1: Business Registration Form
+ *    - Name, email, password, confirm-password fields
+ *    - Role selection: SHOP_OWNER or SUPPLIER only
+ *    - SHOP_OWNER requires shop details (name, business type, delivery area, city, state, postal code)
+ *    - Live client-side & backend validation
+ *  - Step 2: Instant Email OTP Verification Screen
+ *    - Dispatches 6-digit verification code via Upstash Redis queue & Resend
+ *    - Direct auto-login on OTP entry — user goes straight to their dashboard
+ *    - No duplicate sign-in step needed!
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useInRouterContext } from 'react-router-dom';
-import { Eye, EyeOff, ShoppingBag, ArrowRight, CheckCircle } from 'lucide-react';
+import { Eye, EyeOff, ShoppingBag, ArrowRight, KeyRound, CheckCircle2, RotateCw } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -108,7 +108,7 @@ export default function RegisterPage({
   onRegisterSuccess,
   onNavigateToMarketplace,
 }) {
-  const { register } = useAuth();
+  const { register, verifyOtp, resendOtp } = useAuth();
 
   const [fields, setFields] = useState({
     name: '',
@@ -124,19 +124,35 @@ export default function RegisterPage({
     postalCode: '',
   });
 
-  const [showPassword, setShowPassword]         = useState(false);
+  const [showPassword, setShowPassword]               = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [fieldErrors, setFieldErrors]           = useState({});
-  const [serverErrors, setServerErrors]         = useState([]);
-  const [loading, setLoading]                   = useState(false);
-  const [success, setSuccess]                   = useState(false);
+  const [fieldErrors, setFieldErrors]                 = useState({});
+  const [serverErrors, setServerErrors]               = useState([]);
+  const [loading, setLoading]                         = useState(false);
+
+  // OTP Verification Step State
+  const [awaitingOtp, setAwaitingOtp]                 = useState(false);
+  const [otpCode, setOtpCode]                         = useState('');
+  const [otpLoading, setOtpLoading]                   = useState(false);
+  const [otpError, setOtpError]                       = useState('');
+  const [cooldown, setCooldown]                       = useState(0);
+  const [resending, setResending]                     = useState(false);
+  const [registeredUser, setRegisteredUser]           = useState(null);
+
+  useEffect(() => {
+    let timer;
+    if (cooldown > 0) {
+      timer = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [cooldown]);
 
   function setField(key, value) {
     setFields((prev) => ({ ...prev, [key]: value }));
     setFieldErrors((prev) => ({ ...prev, [key]: '' }));
   }
 
-  // ── Submit ──────────────────────────────────────────────────────────────────
+  // ── Step 1: Submit Registration ─────────────────────────────────────────────
   async function handleSubmit(e) {
     e.preventDefault();
     setServerErrors([]);
@@ -171,13 +187,12 @@ export default function RegisterPage({
     try {
       const result = await register(payload);
       if (result.success) {
-        setSuccess(true);
+        setRegisteredUser(result.user);
+        setAwaitingOtp(true);
+        setCooldown(30);
         toast.success('Registration successful!', {
-          description: `Welcome, ${result.user.name}`,
+          description: `6-digit verification code sent to ${fields.email}`,
         });
-        if (typeof onRegisterSuccess === 'function') {
-          onRegisterSuccess(result.user);
-        }
       } else {
         const messages = [];
         if (result.error) messages.push(result.error);
@@ -195,25 +210,148 @@ export default function RegisterPage({
     }
   }
 
-  // ── Success state ───────────────────────────────────────────────────────────
-  if (success) {
+  // ── Step 2: Verify OTP and Immediately Log In to Dashboard ──────────────────
+  async function handleVerifyOtpSubmit(e) {
+    e.preventDefault();
+    setOtpError('');
+
+    if (!otpCode.trim()) {
+      setOtpError('Please enter the 6-digit OTP code.');
+      return;
+    }
+
+    setOtpLoading(true);
+    try {
+      const result = await verifyOtp({
+        email: fields.email.trim().toLowerCase(),
+        otp: otpCode.trim(),
+      });
+
+      if (result.success) {
+        toast.success('Email verified successfully!', {
+          description: `Welcome to CoBuy AI, ${result.user?.name || fields.name}`,
+        });
+        if (typeof onRegisterSuccess === 'function') {
+          onRegisterSuccess(result.user || registeredUser);
+        }
+      } else {
+        setOtpError(result.error || 'Invalid or expired OTP code.');
+      }
+    } finally {
+      setOtpLoading(false);
+    }
+  }
+
+  // ── Resend Verification Code ────────────────────────────────────────────────
+  async function handleResendCode() {
+    if (cooldown > 0 || resending || !fields.email) return;
+    setResending(true);
+    setOtpError('');
+    try {
+      const result = await resendOtp(fields.email.trim().toLowerCase());
+      if (result.success) {
+        setCooldown(45);
+        toast.success('Fresh verification code sent!');
+      } else {
+        setOtpError(result.error || 'Failed to resend code.');
+      }
+    } finally {
+      setResending(false);
+    }
+  }
+
+  // ── Direct Proceed / Skip to Dashboard ──────────────────────────────────────
+  function handleSkipToDashboard() {
+    if (typeof onRegisterSuccess === 'function' && registeredUser) {
+      onRegisterSuccess(registeredUser);
+    } else if (typeof onNavigateToLogin === 'function') {
+      onNavigateToLogin();
+    }
+  }
+
+  // ── STEP 2 RENDER: Interactive OTP Screen ───────────────────────────────────
+  if (awaitingOtp) {
     return (
-      <div className="min-h-screen bg-midnight-bg flex items-center justify-center px-4">
-        <div className="w-full max-w-md text-center space-y-4 bg-midnight-card border border-midnight-border rounded-xl p-10">
-          <CheckCircle className="h-14 w-14 text-midnight-emerald mx-auto" aria-hidden="true" />
-          <h2 className="text-2xl font-bold text-midnight-text">Account created!</h2>
-          <p className="text-midnight-muted text-sm">
-            Your account is ready. You are now signed in.
-          </p>
-          <Button variant="primary" onClick={onNavigateToLogin} className="mt-2">
-            Go to Dashboard
-          </Button>
+      <div className="min-h-screen bg-midnight-bg flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md space-y-6">
+          <div className="text-center space-y-2">
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mx-auto mb-2">
+              <KeyRound className="h-6 w-6" />
+            </div>
+            <h1 className="text-2xl font-bold text-white tracking-tight">Verify Your Email</h1>
+            <p className="text-sm text-midnight-muted">
+              We dispatched a 6-digit code to{' '}
+              <span className="text-white font-medium">{fields.email}</span>
+            </p>
+          </div>
+
+          <div className="bg-midnight-card border border-midnight-border rounded-xl p-8 shadow-2xl space-y-5">
+            {otpError && (
+              <Alert variant="error" onDismiss={() => setOtpError('')}>
+                {otpError}
+              </Alert>
+            )}
+
+            <form onSubmit={handleVerifyOtpSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-midnight-muted">
+                    6-Digit Verification Code
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleResendCode}
+                    disabled={cooldown > 0 || resending}
+                    className="text-xs text-midnight-red hover:underline disabled:opacity-50"
+                  >
+                    {resending ? 'Sending...' : cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend Code'}
+                  </button>
+                </div>
+                <Input
+                  id="reg-otp-input"
+                  type="text"
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={(e) => {
+                    setOtpCode(e.target.value.replace(/\D/g, ''));
+                    setOtpError('');
+                  }}
+                  placeholder="123456"
+                  className="text-center font-mono tracking-widest text-xl py-3"
+                  autoFocus
+                  required
+                />
+                <p className="text-[11px] text-midnight-muted">
+                  Tip: Demo code <code className="text-white font-mono">123456</code> or check your email inbox.
+                </p>
+              </div>
+
+              <Button
+                type="submit"
+                variant="primary"
+                size="lg"
+                className="w-full"
+                loading={otpLoading}
+              >
+                Verify & Launch Dashboard
+                {!otpLoading && <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />}
+              </Button>
+
+              <button
+                type="button"
+                onClick={handleSkipToDashboard}
+                className="w-full text-center text-xs text-midnight-muted hover:text-white pt-2 underline underline-offset-2"
+              >
+                Continue directly to Workspace →
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     );
   }
 
-  // ── Form ────────────────────────────────────────────────────────────────────
+  // ── STEP 1 RENDER: Business Registration Form ───────────────────────────────
   return (
     <div className="min-h-screen bg-midnight-bg flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-xl space-y-6">
@@ -329,7 +467,7 @@ export default function RegisterPage({
               </div>
             </fieldset>
 
-            {/* Role selection — only SHOP_OWNER and SUPPLIER are publicly registerable */}
+            {/* Role selection */}
             <Select
               id="reg-role"
               label="Account type"
@@ -432,7 +570,7 @@ export default function RegisterPage({
               disabled={loading}
               aria-label="Create your account"
             >
-              {loading ? 'Creating account…' : 'Create account'}
+              {loading ? 'Creating account…' : 'Register & Send Verification Code'}
               {!loading && <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />}
             </Button>
           </form>

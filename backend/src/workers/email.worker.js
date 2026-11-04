@@ -39,6 +39,28 @@ export const buildEmailContent = (type, data = {}) => {
     };
   }
 
+  // Login OTP for passwordless sign-in
+  if (type === "login_otp") {
+    return {
+      subject: "Your CoBuy AI Sign-In Code",
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;padding:30px;border:1px solid #e2e8f0;border-radius:12px;color:#0f172a;background:#ffffff;">
+          <h2 style="color:#0284c7;margin-bottom:8px;">🔑 Sign in to Aap Ki Dukan</h2>
+          <p style="color:#475569;margin-bottom:20px;">Apne account mein login karne ke liye neeche diya gaya 6-digit one-time passcode enter karein:</p>
+          <div style="background:#f0f9ff;border:1px solid #bae6fd;padding:18px;border-radius:8px;text-align:center;font-size:32px;font-weight:bold;letter-spacing:8px;color:#0284c7;">
+            ${data.otp || "------"}
+          </div>
+          <p style="color:#94a3b8;font-size:13px;margin-top:20px;line-height:1.5;">
+            ⏳ Yeh OTP sirf <strong>10 minute</strong> tak valid hai.<br/>
+            Agar aapne login request nahi ki, toh kisi ke sath yeh code share na karein.
+          </p>
+          <hr style="border:none;border-top:1px solid #f1f5f9;margin:24px 0;" />
+          <p style="color:#94a3b8;font-size:11px;text-align:center;">CoBuy AI Passwordless Security</p>
+        </div>
+      `,
+    };
+  }
+
   // Password reset OTP
   if (type === "forgot_password_otp") {
     return {

@@ -20,7 +20,19 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { loginUser, registerUser, logoutUser, getCurrentUser } from '@/api/auth.api';
+import {
+  loginUser,
+  registerUser,
+  logoutUser,
+  getCurrentUser,
+  sendOtp as apiSendOtp,
+  resendOtp as apiResendOtp,
+  verifyOtp as apiVerifyOtp,
+  sendLoginOtp as apiSendLoginOtp,
+  loginWithOtp as apiLoginWithOtp,
+  forgotPassword as apiForgotPassword,
+  resetPassword as apiResetPassword,
+} from '@/api/auth.api';
 import { setAuthToken, clearAuthToken } from '@/api/axiosClient';
 
 const AuthContext = createContext(null);
@@ -147,6 +159,96 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  // ── Passwordless OTP Login ─────────────────────────────────────────────────
+  const sendLoginOtp = useCallback(async (email) => {
+    try {
+      const result = await apiSendLoginOtp(email);
+      return { success: true, message: result.message, data: result.data };
+    } catch (err) {
+      const message = err.message || 'Failed to dispatch login OTP.';
+      return { success: false, error: message };
+    }
+  }, []);
+
+  const loginWithOtp = useCallback(async ({ email, otp }) => {
+    setAuthError(null);
+    try {
+      const result = await apiLoginWithOtp({ email, otp });
+      const { user: loggedUser, shop: loggedShop, token } = result.data;
+
+      if (token) {
+        setAuthToken(token);
+      }
+
+      if (mountedRef.current) {
+        setUser(loggedUser);
+        setShop(loggedShop || null);
+      }
+
+      return { success: true, user: loggedUser, shop: loggedShop, token };
+    } catch (err) {
+      const message = err.message || 'OTP login failed. Please try again.';
+      if (mountedRef.current) {
+        setAuthError(message);
+      }
+      return { success: false, error: message, errors: err.errors || [message] };
+    }
+  }, []);
+
+  // ── OTP Verification & Activation (Registration Auto-Login) ────────────────
+  const verifyOtp = useCallback(async ({ email, otp }) => {
+    setAuthError(null);
+    try {
+      const result = await apiVerifyOtp({ email, otp });
+      const { user: verifiedUser, shop: verifiedShop, token } = result.data;
+
+      if (token) {
+        setAuthToken(token);
+      }
+
+      if (mountedRef.current) {
+        setUser(verifiedUser);
+        setShop(verifiedShop || null);
+      }
+
+      return { success: true, user: verifiedUser, shop: verifiedShop, token };
+    } catch (err) {
+      const message = err.message || 'Verification failed. Please try again.';
+      if (mountedRef.current) {
+        setAuthError(message);
+      }
+      return { success: false, error: message, errors: err.errors || [message] };
+    }
+  }, []);
+
+  const resendOtp = useCallback(async (email) => {
+    try {
+      const result = await apiResendOtp(email);
+      return { success: true, message: result.message, data: result.data };
+    } catch (err) {
+      return { success: false, error: err.message || 'Failed to resend code.' };
+    }
+  }, []);
+
+  // ── Forgot & Reset Password ────────────────────────────────────────────────
+  const forgotPassword = useCallback(async (email) => {
+    try {
+      const result = await apiForgotPassword(email);
+      return { success: true, message: result.message, data: result.data };
+    } catch (err) {
+      return { success: false, error: err.message || 'Failed to dispatch reset OTP.' };
+    }
+  }, []);
+
+  const resetPassword = useCallback(async ({ email, otp, newPassword }) => {
+    try {
+      const result = await apiResetPassword({ email, otp, newPassword });
+      return { success: true, message: result.message, data: result.data };
+    } catch (err) {
+      return { success: false, error: err.message || 'Failed to reset password.' };
+    }
+  }, []);
+
   // ── Logout ─────────────────────────────────────────────────────────────────
   /**
    * Clear the authenticated session on both client and server.
@@ -207,7 +309,13 @@ export function AuthProvider({ children }) {
     isAdmin,
     isReviewer,
     login,
+    loginWithOtp,
+    sendLoginOtp,
     register,
+    verifyOtp,
+    resendOtp,
+    forgotPassword,
+    resetPassword,
     logout,
     refreshUser,
   };

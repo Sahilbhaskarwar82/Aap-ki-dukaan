@@ -67,6 +67,13 @@ const userSchema = new mongoose.Schema(
     forgotPasswordOtpExpiry: {
       type: Date,
     },
+    loginOtp: {
+      type: String,
+      select: false,
+    },
+    loginOtpExpiry: {
+      type: Date,
+    },
     lastLoginAt: {
       type: Date,
       default: null,
@@ -177,6 +184,7 @@ userSchema.methods.toSafeObject = function () {
   delete obj.refreshToken;
   delete obj.verificationOtp;
   delete obj.forgotPasswordOtp;
+  delete obj.loginOtp;
   return obj;
 };
 

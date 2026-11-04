@@ -74,6 +74,7 @@ import { Button } from '@/components/ui/Button';
 import LandingPage from '@/pages/public/LandingPage';
 import LoginPage from '@/pages/auth/LoginPage';
 import RegisterPage from '@/pages/auth/RegisterPage';
+import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage';
 import AppShellLayout from '@/layouts/AppShellLayout';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 
@@ -234,6 +235,18 @@ export function AppRoutes() {
             <LoginPage
               onNavigateToRegister={() => navigate('/register')}
               onLoginSuccess={(user) => navigate(getRoleHome(user?.role))}
+              onNavigateToForgotPassword={() => navigate('/forgot-password')}
+            />
+          </PublicAuthRoute>
+        }
+      />
+
+      <Route
+        path="/forgot-password"
+        element={
+          <PublicAuthRoute>
+            <ForgotPasswordPage
+              onNavigateToLogin={() => navigate('/login')}
             />
           </PublicAuthRoute>
         }

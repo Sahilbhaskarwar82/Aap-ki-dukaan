@@ -35,13 +35,33 @@ export const dispatchOtpEmail = async (email, otp, type = "verification_otp") =>
       const subject =
         type === "verification_otp"
           ? "Verify your CoBuy AI Account"
+          : type === "login_otp"
+          ? "Your CoBuy AI Sign-In Code"
           : "Reset Your CoBuy AI Password";
+
+      const title =
+        type === "verification_otp"
+          ? "🛍️ Welcome to Aap Ki Dukan (CoBuy AI)"
+          : type === "login_otp"
+          ? "🔑 Sign in to Aap Ki Dukan (CoBuy AI)"
+          : "🔒 CoBuy AI Password Reset";
+
+      const desc =
+        type === "verification_otp"
+          ? "Apna account verify karne ke liye neeche diya gaya 6-digit OTP code darj karein:"
+          : type === "login_otp"
+          ? "Apne account mein passwordless sign-in ke liye neeche diya gaya 6-digit OTP enter karein:"
+          : "Apna password reset karne ke liye neeche diya gaya 6-digit OTP code enter karein:";
+
+      const accentColor = type === "login_otp" ? "#0284c7" : "#e11d48";
+      const bgAccent = type === "login_otp" ? "#f0f9ff" : "#fff1f2";
+      const borderAccent = type === "login_otp" ? "#bae6fd" : "#fecdd3";
 
       const html = `
         <div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;padding:30px;border:1px solid #e2e8f0;border-radius:12px;color:#0f172a;background:#ffffff;">
-          <h2 style="color:#e11d48;margin-bottom:8px;">🛍️ Aap Ki Dukan (CoBuy AI)</h2>
-          <p style="color:#475569;margin-bottom:20px;">Apna account verify karne ke liye neeche diya gaya 6-digit OTP code darj karein:</p>
-          <div style="background:#fff1f2;border:1px solid #fecdd3;padding:18px;border-radius:8px;text-align:center;font-size:32px;font-weight:bold;letter-spacing:8px;color:#e11d48;">
+          <h2 style="color:${accentColor};margin-bottom:8px;">${title}</h2>
+          <p style="color:#475569;margin-bottom:20px;">${desc}</p>
+          <div style="background:${bgAccent};border:1px solid ${borderAccent};padding:18px;border-radius:8px;text-align:center;font-size:32px;font-weight:bold;letter-spacing:8px;color:${accentColor};">
             ${otp}
           </div>
           <p style="color:#94a3b8;font-size:13px;margin-top:20px;line-height:1.5;">

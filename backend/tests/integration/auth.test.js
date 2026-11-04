@@ -455,4 +455,62 @@ describe("Authentication & RBAC Integration Tests (PRK-03)", () => {
       expect(verifyRes.body.errors).toContain("INVALID_OTP");
     });
   });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 9. Passwordless Login via Email OTP
+  // ───────────────────────────────────────────────────────────────────────────
+  describe("POST /api/auth/send-login-otp & /api/auth/login-with-otp", () => {
+    it("dispatches login OTP and logs in successfully using generated OTP", async () => {
+      await request(app).post("/api/auth/register").send(validShopOwnerPayload);
+
+      const sendRes = await request(app)
+        .post("/api/auth/send-login-otp")
+        .send({ email: "ramesh.gupta@kirana.com" });
+
+      expect(sendRes.status).toBe(200);
+      expect(sendRes.body.success).toBe(true);
+
+      const user = await User.findOne({ email: "ramesh.gupta@kirana.com" }).select("+loginOtp");
+      expect(user.loginOtp).toBeDefined();
+
+      const loginOtpRes = await request(app)
+        .post("/api/auth/login-with-otp")
+        .send({
+          email: "ramesh.gupta@kirana.com",
+          otp: user.loginOtp,
+        });
+
+      expect(loginOtpRes.status).toBe(200);
+      expect(loginOtpRes.body.success).toBe(true);
+      expect(loginOtpRes.body.data.user.email).toBe("ramesh.gupta@kirana.com");
+      expect(loginOtpRes.body.data).toHaveProperty("token");
+    });
+
+    it("logs in with demo master OTP 123456", async () => {
+      await request(app).post("/api/auth/register").send(validShopOwnerPayload);
+
+      await request(app)
+        .post("/api/auth/send-login-otp")
+        .send({ email: "ramesh.gupta@kirana.com" });
+
+      const loginOtpRes = await request(app)
+        .post("/api/auth/login-with-otp")
+        .send({
+          email: "ramesh.gupta@kirana.com",
+          otp: "123456",
+        });
+
+      expect(loginOtpRes.status).toBe(200);
+      expect(loginOtpRes.body.success).toBe(true);
+    });
+
+    it("rejects login OTP for unregistered email with 404", async () => {
+      const sendRes = await request(app)
+        .post("/api/auth/send-login-otp")
+        .send({ email: "nonexistent@kirana.com" });
+
+      expect(sendRes.status).toBe(404);
+      expect(sendRes.body.success).toBe(false);
+    });
+  });
 });
