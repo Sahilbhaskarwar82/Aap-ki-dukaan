@@ -102,7 +102,7 @@ export const getOrderActivity = asyncHandler(async (req, res) => {
     throw new ApiError(404, `Order ${id} not found.`);
   }
 
-  verifyOrderAuthorization(order, req.user);
+  verifyOrderAuthorization(order, req.user, req.shop);
 
   const timeline = await getOrderActivityTimeline(order._id, {
     page,
@@ -137,7 +137,7 @@ export const getOrderById = asyncHandler(async (req, res) => {
     throw new ApiError(404, `Order ${id} not found.`);
   }
 
-  verifyOrderAuthorization(order, req.user);
+  verifyOrderAuthorization(order, req.user, req.shop);
 
   return res.status(200).json(
     new APIResponse(200, order, "Order retrieved successfully.")
@@ -153,7 +153,7 @@ export const listOrders = asyncHandler(async (req, res) => {
   const filter = {};
 
   if (user?.role === "SHOP_OWNER" || !user?.role) {
-    const shopId = user?.shopId || user?.shop?._id || user?.shop;
+    const shopId = req.shop?._id || user?.shopId || user?.shop?._id || user?.shop;
     if (shopId) {
       filter["memberOrders.shopId"] = shopId;
     }

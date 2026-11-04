@@ -393,3 +393,35 @@ export function calculateOfferLandedCost(offer, quantity = 1) {
     isCompleteLandedCost: isShippingKnown,
   };
 }
+
+
+/**
+ * Retrieves authenticated supplier's own business profile.
+ * GET /api/suppliers/me
+ *
+ * @returns {Promise<object>}
+ */
+export async function getMySupplierProfile() {
+  const res = await axiosClient.get('/suppliers/me');
+  const body = res?.data;
+  if (body && typeof body === 'object' && 'data' in body) {
+    return body.data;
+  }
+  return body;
+}
+
+/**
+ * Updates authenticated supplier's own business profile.
+ * PATCH /api/suppliers/me
+ *
+ * @param {object} payload
+ * @returns {Promise<object>}
+ */
+export async function updateMySupplierProfile(payload) {
+  const res = await axiosClient.patch('/suppliers/me', payload);
+  const body = res?.data;
+  if (body && typeof body === 'object' && 'data' in body) {
+    return body.data;
+  }
+  return body;
+}

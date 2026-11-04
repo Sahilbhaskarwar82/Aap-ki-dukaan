@@ -96,7 +96,6 @@ export function OrdersListPage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold text-white tracking-tight">Finalized Group Orders</h1>
-            <Badge variant="warning">Wave 4 (SUJ-07)</Badge>
           </div>
           <p className="text-xs text-midnight-muted mt-1">
             Confirmed collective purchase orders, fulfillment tracking, and itemized allocation breakdown

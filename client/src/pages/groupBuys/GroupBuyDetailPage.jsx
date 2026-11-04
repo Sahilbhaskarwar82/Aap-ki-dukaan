@@ -14,7 +14,7 @@
  *  - Participant contributions table & chronological ActivityTimeline
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -90,14 +90,18 @@ export function GroupBuyDetailPage() {
   const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
   const [withdrawReason, setWithdrawReason] = useState('BUYER_WITHDRAWAL');
   const [actionLoading, setActionLoading] = useState(false);
+  const initialLoadedRef = useRef(false);
 
   // Load pool details
   const loadPoolData = useCallback(async () => {
     if (!poolId) return;
     try {
-      setLoading(true);
+      if (!initialLoadedRef.current) {
+        setLoading(true);
+      }
       setError(null);
       const data = await fetchPoolById(poolId);
+      initialLoadedRef.current = true;
       setPool(data.pool);
       setContributions(data.contributions || []);
       if (data.pool) {
@@ -159,6 +163,11 @@ export function GroupBuyDetailPage() {
   const handleInitiateJoin = async () => {
     if (joinQuantity < minRetailerQty) {
       notify?.(`Quantity must be at least the buyer minimum of ${minRetailerQty} ${packUnit}.`, 'error');
+      return;
+    }
+    const q = Number(joinQuantity);
+    if (!Number.isInteger(q) || q <= 0) {
+      notify?.('Please enter a valid positive whole number quantity.', 'error');
       return;
     }
     try {
@@ -388,12 +397,16 @@ export function GroupBuyDetailPage() {
                 </p>
               </div>
 
-              {pool.deadline && (
+              {(isUnderMoqDecision ? (pool.decisionDeadline || pool.deadline) : pool.deadline) && (
                 <CountdownTimer
-                  deadline={pool.deadline}
+                  deadline={isUnderMoqDecision ? (pool.decisionDeadline || pool.deadline) : pool.deadline}
                   label={isUnderMoqDecision ? '24h Decision Remaining' : 'Recruitment Remaining'}
                   variant="badge"
-                  onExpire={loadPoolData}
+                  onExpire={() => {
+                    if (pool.state === 'RECRUITING') {
+                      loadPoolData();
+                    }
+                  }}
                 />
               )}
             </div>

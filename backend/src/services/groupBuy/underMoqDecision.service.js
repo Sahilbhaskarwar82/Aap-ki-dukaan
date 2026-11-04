@@ -63,6 +63,34 @@ export const submitBuyerUnderMoqDecision = async (
   if (decision === "CANCEL") {
     // Case 2 & 3: Cancelling buyer is marked for exclusion and refund
     contribution.state = "CANCELLED_UNDER_MOQ";
+
+    // Immediately initiate full refund for any paid payments on this contribution
+    if (contribution.totalPaidMinor > 0) {
+      try {
+        const { initiateRefund } = await import("../refunds/refund.service.js");
+        const { Payment } = await import("../../models/Payment.model.js");
+        const payments = await Payment.find({
+          contributionId: contribution._id,
+          $or: [
+            { paymentStatus: { $in: ["PAID", "PARTIALLY_REFUNDED"] } },
+            { status: { $in: ["PAID", "PARTIALLY_REFUNDED"] } },
+          ],
+        }).session(session);
+
+        for (const p of payments) {
+          await initiateRefund({
+            paymentId: p._id,
+            amountMinor: p.amountMinor,
+            reason: "UNDER_MOQ_BUYER_CANCEL",
+            idempotencyKey: `UNDER_MOQ_REFUND_${contribution._id}_${p._id}`,
+            requesterUserId: contribution.createdByUserId,
+            metadata: { poolId, contributionId },
+          });
+        }
+      } catch (err) {
+        console.warn("Failed to automatically initiate refund for under-MOQ cancel:", err.message);
+      }
+    }
   }
 
   await contribution.save(opts);
@@ -247,6 +275,32 @@ export const cancelPoolAndRefundAll = async (poolId, reason = "POOL_CANCELLED", 
     { $set: { state: "CANCELLED_UNDER_MOQ" } },
     opts
   );
+
+  // Auto-initiate refunds for all paid contributions in this pool
+  try {
+    const { initiateRefund } = await import("../refunds/refund.service.js");
+    const { Payment } = await import("../../models/Payment.model.js");
+    const payments = await Payment.find({
+      poolId,
+      $or: [
+        { paymentStatus: { $in: ["PAID", "PARTIALLY_REFUNDED"] } },
+        { status: { $in: ["PAID", "PARTIALLY_REFUNDED"] } },
+      ],
+    }).session(session);
+
+    for (const p of payments) {
+      await initiateRefund({
+        paymentId: p._id,
+        amountMinor: p.amountMinor,
+        reason: "POOL_CANCELLED",
+        idempotencyKey: `POOL_CANCEL_REFUND_${poolId}_${p._id}`,
+        requesterUserId: p.payerUserId,
+        metadata: { poolId, reason },
+      });
+    }
+  } catch (err) {
+    console.warn("Failed to automatically refund cancelled pool payments:", err.message);
+  }
 
   return pool;
 };

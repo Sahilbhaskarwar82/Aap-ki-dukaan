@@ -400,7 +400,7 @@ export function PublicLayout({
               <a href="#" className="hover:text-slate-400">Terms of Procurement</a>
               <a href="#" className="hover:text-slate-400">Privacy Policy</a>
               <a href="#" className="hover:text-slate-400">Security Disclosures</a>
-              <span className="text-slate-600">v1.0-wave1</span>
+              <span className="text-slate-600">v1.0.0</span>
             </div>
           </div>
         </div>

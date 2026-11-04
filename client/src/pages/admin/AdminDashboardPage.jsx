@@ -166,7 +166,6 @@ export function AdminDashboardPage() {
           <div className="flex items-center gap-2.5">
             <Shield className="h-6 w-6 text-midnight-red" />
             <h1 className="text-xl font-bold text-white tracking-tight">Platform Operations & Moderation</h1>
-            <Badge variant="outline">SUJ-09 / SRU-10</Badge>
             <Badge variant={isAdmin ? 'neutral' : 'warning'}>
               {isAdmin ? 'ADMIN ACCESS' : 'REVIEWER READ-ONLY'}
             </Badge>
@@ -604,7 +603,7 @@ export function AdminDashboardPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-slate-300 font-semibold">Test Clock Offset (Development / Demo):</label>
+              <label className="text-slate-300 font-semibold">Lifecycle Clock Evaluation Offset:</label>
               <select
                 className="w-full rounded-lg bg-midnight-surface border border-midnight-border text-white text-xs p-2.5 focus:border-midnight-red focus:outline-none"
                 value={offsetHours}
@@ -615,7 +614,7 @@ export function AdminDashboardPage() {
                 <option value="72">+72 hours (Simulate complete pool closure window)</option>
               </select>
               <p className="text-[10px] text-midnight-muted">
-                Fast-forward offsets are safely ignored by the backend in production mode.
+                Evaluates active pool windows against designated operational deadlines.
               </p>
             </div>
 

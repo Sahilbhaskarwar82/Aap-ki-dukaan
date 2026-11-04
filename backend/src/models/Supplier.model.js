@@ -32,7 +32,9 @@ const contactReferenceSchema = new mongoose.Schema(
     contactPerson: { type: String, trim: true, default: "" },
     email: { type: String, trim: true, lowercase: true, default: "" },
     phone: { type: String, trim: true, default: "" },
+    whatsapp: { type: String, trim: true, default: "" },
     address: { type: String, trim: true, default: "" },
+    gstin: { type: String, trim: true, default: "" },
   },
   { _id: false }
 );
@@ -114,4 +116,3 @@ supplierSchema.index({ activeStatus: 1, verificationStatus: 1, serviceAreas: 1 }
 
 export const Supplier = mongoose.model("Supplier", supplierSchema);
 export default Supplier;
-

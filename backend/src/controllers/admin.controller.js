@@ -526,9 +526,7 @@ export const runLifecycleCheck = asyncHandler(async (req, res) => {
   if (process.env.NODE_ENV !== "production") {
     if (targetDate) {
       clockService.setFixedTime(new Date(targetDate));
-    } else if (offsetHours) {
-      clockService.advanceTimeByHours(Number(offsetHours));
-    } else if (offsetMinutes) {
+    } else if (offsetHours !== undefined) { clockService.reset(); if (Number(offsetHours) > 0) { clockService.advanceTimeByHours(Number(offsetHours)); } } else if (offsetMinutes) {
       clockService.advanceTimeByMs(Number(offsetMinutes) * 60 * 1000);
     }
   }
@@ -583,3 +581,4 @@ export const runLifecycleCheck = asyncHandler(async (req, res) => {
     )
   );
 });
+

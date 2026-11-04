@@ -5,12 +5,17 @@ import {
   searchProducts,
   searchOffers,
   compareOffers,
+  getMySupplierProfile,
+  updateMySupplierProfile,
 } from "../controllers/supplier.controller.js";
+import { verifyJWT, verifyRole } from "../middleware/auth.middleware.js";
 
 /**
  * Task SAH-05 & SAH-07: Supplier & Catalogue Routes
  *
  * Exposes:
+ * - GET /api/suppliers/me: Authenticated self-service supplier profile
+ * - PATCH /api/suppliers/me: Authenticated self-service supplier profile update
  * - GET /api/suppliers: Search & list wholesale suppliers
  * - GET /api/suppliers/products/search: Catalogue product search (also mounted at /api/products/search)
  * - GET /api/suppliers/offers/search: Live supplier offer search (also mounted at /api/offers/search)
@@ -32,8 +37,12 @@ offerRouter.post("/compare", compareOffers);
 router.get("/products/search", searchProducts);
 router.get("/offers/search", searchOffers);
 router.post("/offers/compare", compareOffers);
+
+// Authenticated self-service supplier profile endpoints (must precede /:id)
+router.get("/me", verifyJWT, verifyRole("SUPPLIER", "ADMIN"), getMySupplierProfile);
+router.patch("/me", verifyJWT, verifyRole("SUPPLIER", "ADMIN"), updateMySupplierProfile);
+
 router.get("/:id", getSupplierById);
 router.get("/", listSuppliers);
 
 export default router;
-

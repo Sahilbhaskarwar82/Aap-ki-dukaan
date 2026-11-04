@@ -130,8 +130,34 @@ export const joinPool = async (
     throw new ApiError(409, "Pool 72-hour deadline has expired.", ["POOL_EXPIRED"]);
   }
 
-  // Validate quantity against MOQ_R and Step rules
-  validateContributionQuantity(quantity, pool);
+  // Validate quantity: must be a positive integer >= MOQ_R (20% of wholesaler MOQ).
+  // Formula: Retailer Minimum MOQ = Math.ceil(0.20 * Wholesaler MOQ). Round UP to whole unit.
+  // No even-number requirement and no step-multiple requirement.
+  const q = Number(quantity);
+  if (!Number.isInteger(q) || q <= 0) {
+    throw new ApiError(400, "Quantity must be a positive whole number.", ["INVALID_QUANTITY"]);
+  }
+
+  const wholesalerMoq = Number(pool.targetMoq || pool.minimumOrderQuantity || 1);
+  const minRetailerMoq = pool.minRetailerQuantity || Math.max(1, Math.ceil(wholesalerMoq * 0.20));
+
+  if (q < minRetailerMoq) {
+    throw new ApiError(
+      400,
+      `Quantity ${q} is below the required Retailer Minimum Order Quantity (${minRetailerMoq} units, which is 20% of Wholesaler MOQ ${wholesalerMoq}).`,
+      ["BELOW_RETAILER_MOQ"]
+    );
+  }
+
+  // If pool specifies a step multiple > 1, enforce step increment rule
+  const step = pool.quantityStepMultiple || pool.stepMultiple;
+  if (step && step > 1 && q % step !== 0) {
+    throw new ApiError(
+      400,
+      `Quantity ${q} is not a valid multiple of Step ${step}.`,
+      ["INVALID_STEP_MULTIPLE"]
+    );
+  }
 
   // Check unique active contribution per shop in this pool
   const existing = await Contribution.findOne({
@@ -148,7 +174,6 @@ export const joinPool = async (
     );
   }
 
-  const q = Number(quantity);
   const unitPrice = pool.currentUnitPriceMinor;
   const merchandiseShare = q * unitPrice;
 
