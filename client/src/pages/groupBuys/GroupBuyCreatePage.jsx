@@ -329,9 +329,7 @@ export function GroupBuyCreatePage() {
           </p>
         </div>
 
-        <Badge variant="pool" className="text-xs font-mono">
-          Wave 4 (SUJ-02)
-        </Badge>
+
       </div>
 
       {/* ── Partial Pool Creation Recovery Alert ── */}

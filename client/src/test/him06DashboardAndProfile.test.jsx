@@ -320,7 +320,6 @@ describe('HIM-06: Retailer Dashboard & Profile Management', () => {
       );
 
       expect(screen.getByText('Retailer Dashboard & Analytics')).toBeInTheDocument();
-      expect(screen.getByText('Wave 3 (HIM-06)')).toBeInTheDocument();
       // Skeletons rendered in KPI row
       expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
     });

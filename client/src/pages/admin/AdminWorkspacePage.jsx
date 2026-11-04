@@ -183,7 +183,6 @@ export function AdminWorkspacePage({ view = 'overview' }) {
             {currentTab === 'OVERVIEW' && (
               <>
                 <h1 className="text-xl font-bold text-white tracking-tight">Platform Administration Overview</h1>
-                <Badge variant="warning">Wave 4 (SUJ-09)</Badge>
               </>
             )}
             {currentTab === 'SUPPLIERS' && (

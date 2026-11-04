@@ -556,7 +556,6 @@ export function SupplierPortalPage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold text-white tracking-tight">Wholesaler Supplier Workspace</h1>
-            <Badge variant="warning">Wave 4 (SUJ-08)</Badge>
           </div>
           <p className="text-xs text-midnight-muted mt-1">
             Dedicated workspace for regional distributors and manufacturers. Publish wholesale offers with MOQ_W and tier

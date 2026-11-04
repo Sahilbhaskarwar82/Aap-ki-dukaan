@@ -528,7 +528,6 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
       );
 
       expect(screen.getByText('Retailer Dashboard & Analytics')).toBeInTheDocument();
-      expect(screen.getByText('Wave 3 (HIM-06)')).toBeInTheDocument();
       expect(screen.getByRole('navigation')).toBeInTheDocument();
     });
 
@@ -622,7 +621,6 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
       );
 
       expect(screen.getAllByText('Create Group-Buy Pool').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getByText('Wave 4 (SUJ-02)')).toBeInTheDocument();
       expect(screen.getByRole('navigation')).toBeInTheDocument();
     });
 
@@ -656,7 +654,6 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
       );
 
       expect(screen.getByText('Finalized Group Orders')).toBeInTheDocument();
-      expect(screen.getByText('Wave 4 (SUJ-07)')).toBeInTheDocument();
     });
 
     it('renders /payments inside AppShellLayout', () => {
@@ -689,7 +686,6 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
       );
 
       expect(screen.getByText('Business Profile & Settings')).toBeInTheDocument();
-      expect(screen.getByText('Wave 3 (HIM-06)')).toBeInTheDocument();
     });
   });
 
@@ -704,7 +700,6 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
       );
 
       expect(screen.getByText('Wholesaler Supplier Workspace')).toBeInTheDocument();
-      expect(screen.getByText('Wave 4 (SUJ-08)')).toBeInTheDocument();
     });
 
     it('renders /admin for ADMIN inside AppShellLayout', () => {
@@ -716,7 +711,6 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
       );
 
       expect(screen.getByText(/Platform Operations & Moderation/i)).toBeInTheDocument();
-      expect(screen.getByText(/SUJ-09 \/ SRU-10/i)).toBeInTheDocument();
     });
 
     it('renders /admin/suppliers for ADMIN', () => {
@@ -786,7 +780,6 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
       );
 
       expect(screen.getByText('Notification Center')).toBeInTheDocument();
-      expect(screen.getByText('Wave 4 (SUJ-07)')).toBeInTheDocument();
     });
 
     it('renders 404 page for unmatched routes', () => {

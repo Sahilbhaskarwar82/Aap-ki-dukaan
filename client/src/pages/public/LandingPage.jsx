@@ -781,7 +781,13 @@ export function LandingPage({
               </p>
             </div>
             <button
-              onClick={() => toast.info('Full wholesale catalog available in Wave 2')}
+              onClick={() => {
+                if (typeof onNavigate === 'function') {
+                  onNavigate('/suppliers');
+                } else if (typeof window !== 'undefined') {
+                  window.location.href = '/suppliers';
+                }
+              }}
               className="text-xs font-semibold text-midnight-red hover:underline cursor-pointer"
             >
               Browse Complete Catalog &rarr;

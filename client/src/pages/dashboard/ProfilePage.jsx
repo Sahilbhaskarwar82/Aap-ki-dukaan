@@ -321,7 +321,6 @@ export function ProfilePage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold text-white tracking-tight">Business Profile & Settings</h1>
-            <Badge variant="warning">Wave 3 (HIM-06)</Badge>
           </div>
           <p className="text-xs text-midnight-muted mt-1">
             {isSupplier

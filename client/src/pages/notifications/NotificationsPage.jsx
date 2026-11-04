@@ -170,7 +170,6 @@ export function NotificationsPage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold text-white tracking-tight">Notification Center</h1>
-            <Badge variant="warning">Wave 4 (SUJ-07)</Badge>
           </div>
           <p className="text-xs text-midnight-muted mt-1">
             Real-time procurement alerts, pool milestone updates, tier discount unlocks, and order dispatch notices

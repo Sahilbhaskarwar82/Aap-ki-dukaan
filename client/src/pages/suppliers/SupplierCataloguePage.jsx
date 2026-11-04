@@ -402,7 +402,7 @@ function OfferComparisonModal({
                 Side-by-Side Wholesale Offer Comparison
               </DialogTitle>
               <DialogDescription className="text-xs text-midnight-muted mt-0.5">
-                Authoritative deterministic landed-cost calculations and AI trade-off advisory (Task SAH-07)
+                Authoritative deterministic landed-cost calculations and AI trade-off advisory
               </DialogDescription>
             </div>
 

@@ -1134,7 +1134,7 @@ export default function RequirementDetailPage() {
                 Compatible Wholesale Supplier Offers
               </h2>
               <p className="text-xs text-midnight-muted mt-1">
-                Evaluated against confirmed specifications, delivery area, and MOQ compatibility (SAH-06)
+                Evaluated against confirmed specifications, delivery area, and MOQ compatibility
               </p>
             </div>
             {matches && (
