@@ -328,7 +328,7 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
       );
 
       expect(screen.queryByRole('heading', { name: /Register your business/i })).not.toBeInTheDocument();
-      expect(screen.getByText(/Platform Administration Overview/i)).toBeInTheDocument();
+      expect(screen.getByText(/Platform Operations & Moderation/i)).toBeInTheDocument();
     });
   });
 
@@ -715,8 +715,8 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
         </MemoryRouter>
       );
 
-      expect(screen.getByText('Platform Administration Overview')).toBeInTheDocument();
-      expect(screen.getByText('Wave 4 (SUJ-09)')).toBeInTheDocument();
+      expect(screen.getByText(/Platform Operations & Moderation/i)).toBeInTheDocument();
+      expect(screen.getByText(/SUJ-09 \/ SRU-10/i)).toBeInTheDocument();
     });
 
     it('renders /admin/suppliers for ADMIN', () => {
@@ -727,7 +727,7 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
         </MemoryRouter>
       );
 
-      expect(screen.getByText('Supplier Verification & Moderation')).toBeInTheDocument();
+      expect(screen.getByText(/Supplier Verification & Provenance/i)).toBeInTheDocument();
     });
 
     it('renders /admin/offers for ADMIN', () => {
@@ -749,7 +749,7 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
         </MemoryRouter>
       );
 
-      expect(screen.getByText('Pools & Reconciliation Workspace')).toBeInTheDocument();
+      expect(screen.getByText(/Pools & Payment Reconciliation Workspace/i)).toBeInTheDocument();
     });
 
     it('renders /admin/audit for ADMIN and REVIEWER', () => {
@@ -760,7 +760,7 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
         </MemoryRouter>
       );
 
-      expect(screen.getByText('Audit & AI Execution Logs')).toBeInTheDocument();
+      expect(screen.getByText(/Platform Audit Trail & Security Logs/i)).toBeInTheDocument();
     });
 
     it('redirects REVIEWER from /reviewer to /admin', () => {
@@ -771,7 +771,7 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
         </MemoryRouter>
       );
 
-      expect(screen.getByText('Platform Administration Overview')).toBeInTheDocument();
+      expect(screen.getByText(/Platform Operations & Moderation/i)).toBeInTheDocument();
     });
   });
 

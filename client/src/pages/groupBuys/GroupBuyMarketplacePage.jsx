@@ -420,9 +420,9 @@ export function GroupBuyMarketplacePage() {
 
             return (
               <div
-                key={pool._id}
+                key={pool._id} role="button" tabIndex={0} onClick={() => navigate('/group-buys/' + pool._id)}
                 className={cn(
-                  'rounded-xl border bg-midnight-card text-midnight-text flex flex-col justify-between p-5 space-y-4 shadow-lg transition-all hover:border-slate-500/80',
+                  'rounded-xl border bg-midnight-card text-midnight-text flex flex-col justify-between p-5 space-y-4 shadow-lg transition-all hover:border-slate-500/80 cursor-pointer',
                   isRecruiting ? 'border-midnight-border' : 'border-midnight-border/70 opacity-95'
                 )}
               >

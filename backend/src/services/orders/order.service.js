@@ -71,7 +71,7 @@ export function formatCurrency(amountMinor, currency = "INR") {
  * - SHOP_OWNER: Authorized if shopId is present in order's memberOrders.
  * - Others: 403 Forbidden.
  */
-export function verifyOrderAuthorization(order, requestingUser) {
+export function verifyOrderAuthorization(order, requestingUser, requestingShop = null) {
   if (!requestingUser) {
     throw new ApiError(401, "Authentication required to access Purchase Order summary.");
   }
@@ -98,6 +98,7 @@ export function verifyOrderAuthorization(order, requestingUser) {
   // 3. Retailer / Shop Owner check
   if (role === "SHOP_OWNER" || !role) {
     const userShopId =
+      requestingShop?._id?.toString() ||
       requestingUser.shopId?.toString() ||
       requestingUser.shop?._id?.toString() ||
       requestingUser.shop?.toString();

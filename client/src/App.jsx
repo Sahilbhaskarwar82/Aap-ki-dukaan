@@ -95,6 +95,7 @@ import GroupBuyMarketplacePage from '@/pages/groupBuys/GroupBuyMarketplacePage';
 import GroupBuyCreatePage from '@/pages/groupBuys/GroupBuyCreatePage';
 import GroupBuyDetailPage from '@/pages/groupBuys/GroupBuyDetailPage';
 import PoolApprovalPage from '@/pages/groupBuys/PoolApprovalPage';
+import UnderMOQDecisionPage from '@/pages/groupBuys/UnderMOQDecisionPage';
 // Payments & Refunds (SUJ-06)
 import PaymentsPage from '@/pages/payments/PaymentsPage';
 import RefundsPage from '@/pages/payments/RefundsPage';
@@ -365,6 +366,19 @@ export function AppRoutes() {
             subtitle="Review and approve your frozen price snapshot"
           >
             <PoolApprovalPage />
+          </ProtectedShellRoute>
+        }
+      />
+
+      <Route
+        path="/group-buys/:poolId/decision"
+        element={
+          <ProtectedShellRoute
+            allowedRoles={['SHOP_OWNER']}
+            title="24-Hour Under-MOQ Buyer Decision"
+            subtitle="Review AI recommendation and submit your binding decision"
+          >
+            <UnderMOQDecisionPage />
           </ProtectedShellRoute>
         }
       />

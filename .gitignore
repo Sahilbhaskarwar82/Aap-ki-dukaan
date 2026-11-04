@@ -32,6 +32,8 @@ backend/.env.*
 # Testing & Coverage
 coverage/
 .nyc_output/
+playwright-report/
+test-results/
 
 # Uploads
 private_uploads/
