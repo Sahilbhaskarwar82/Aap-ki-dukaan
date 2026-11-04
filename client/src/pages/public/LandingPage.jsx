@@ -24,6 +24,7 @@ import {
   CreditCard,
   Copy,
   Check,
+  MapPin,
 } from 'lucide-react';
 import { PublicLayout } from '@/layouts/PublicLayout';
 import { Button } from '@/components/ui/Button';
@@ -413,23 +414,24 @@ export function LandingPage({
       onNavigate={onNavigate}
     >
       {/* ── SECTION 1: PROMOTIONAL HERO BANNER ── */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-[#111620] via-midnight-bg to-midnight-bg border-b border-midnight-border/70 py-12 md:py-16 xl:py-20">
-        {/* Subtle ambient glows */}
-        <div className="pointer-events-none absolute -left-40 top-0 h-96 w-96 rounded-full bg-midnight-red/10 blur-3xl" />
-        <div className="pointer-events-none absolute -right-40 top-10 h-96 w-96 rounded-full bg-midnight-emerald/10 blur-3xl" />
-
+      <section className="relative overflow-hidden bg-[#0A0D14] border-b border-slate-800 py-12 md:py-16 xl:py-20">
         <div className="marketplace-container relative z-10 text-left">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 xl:gap-16 items-center">
             {/* Left Column (Hero Content) */}
             <div className="lg:col-span-7 xl:col-span-7 space-y-5 xl:space-y-6">
-              <h1 className="font-display font-bold text-3xl sm:text-4xl lg:text-5xl xl:text-6xl text-white tracking-tight leading-[1.12] xl:leading-[1.08] max-w-3xl">
-                WHOLESALE PRICES.{' '}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-rose-300 to-amber-300">
-                  POWERED BY BUYING TOGETHER.
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs text-slate-300">
+                <span className="h-2 w-2 rounded-full bg-red-500" />
+                <span>Regional Demand Aggregation &bull; Lucknow Hub</span>
+              </div>
+
+              <h1 className="font-display font-bold text-3xl sm:text-4xl lg:text-5xl xl:text-6xl text-white tracking-tight leading-[1.12] max-w-3xl">
+                Wholesale Prices.{' '}
+                <span className="text-slate-300 font-semibold block sm:inline">
+                  Powered by buying together.
                 </span>
               </h1>
 
-              <p className="text-sm sm:text-base xl:text-lg text-midnight-muted leading-relaxed max-w-2xl">
+              <p className="text-sm sm:text-base xl:text-lg text-slate-400 leading-relaxed max-w-2xl">
                 Independent retail stores, cafes, and kiranas unite regional purchasing needs. Pool your order volumes, reach wholesale manufacturer MOQs, and unlock true factory-direct pricing.
               </p>
 
@@ -437,7 +439,7 @@ export function LandingPage({
                 <Button
                   variant="primary"
                   size="lg"
-                  className="font-semibold text-sm"
+                  className="font-semibold text-sm shadow-sm"
                   onClick={() => {
                     const groupSection = document.getElementById('trending-group-buys');
                     if (groupSection) groupSection.scrollIntoView({ behavior: 'smooth' });
@@ -450,77 +452,103 @@ export function LandingPage({
                 <Button
                   variant="outline"
                   size="lg"
-                  className="font-medium text-sm border-midnight-border hover:border-slate-400"
+                  className="font-medium text-sm border-slate-700 bg-slate-900/60 text-slate-200 hover:bg-slate-800 hover:text-white hover:border-slate-500"
                   onClick={() => setHowItWorksOpen(true)}
                 >
-                  <Sparkles className="mr-2 h-4 w-4 text-midnight-gold" />
+                  <HelpCircle className="mr-2 h-4 w-4 text-slate-400" />
                   How Collective Buying Works
                 </Button>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-y-2 gap-x-5 pt-3 text-xs text-slate-400 border-t border-slate-800/80">
+                <span className="flex items-center gap-1.5">
+                  <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
+                  Verified Regional Wholesalers
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                  100% Refund if Pool Under-MOQ
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Building className="h-4 w-4 text-slate-400 shrink-0" />
+                  Direct Transport Hub Dispatch
+                </span>
               </div>
             </div>
 
             {/* Right Column (Hero Featured Card Showcase) */}
             <div className="lg:col-span-5 xl:col-span-5">
-              <div className="relative rounded-2xl border border-midnight-border/90 bg-gradient-to-br from-midnight-card via-midnight-card to-midnight-surface/80 p-5 sm:p-6 xl:p-7 shadow-2xl shadow-black/80 space-y-4 xl:space-y-5">
-                <div className="flex items-center justify-between border-b border-midnight-border/60 pb-3">
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 sm:p-6 xl:p-7 shadow-xl space-y-4 xl:space-y-5">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                   <div className="flex items-center gap-2">
-                    <Badge variant="pool" className="text-xs">
-                      <Flame className="h-3 w-3 mr-1 text-teal-300" />
-                      Featured Lucknow Pool
-                    </Badge>
-                    <span className="text-xs text-midnight-muted">AKD-POOL-2026-08</span>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-950/60 border border-emerald-500/30 text-[11px] font-medium text-emerald-300">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                      Live Regional Pool
+                    </span>
+                    <span className="text-xs font-mono text-slate-400">AKD-POOL-2026-08</span>
                   </div>
-                  <Badge variant="payment" className="text-xs font-mono font-bold">
-                    ₹80 / carton
-                  </Badge>
+                  <div className="text-right">
+                    <span className="text-sm font-bold font-mono text-emerald-400">₹80</span>
+                    <span className="text-[11px] text-slate-400"> / carton</span>
+                  </div>
                 </div>
 
                 <div className="text-left space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-emerald-400 font-semibold uppercase tracking-wider">Packaging</span>
+                    <span className="text-slate-600">&bull;</span>
+                    <span className="text-[11px] text-slate-400">Standard: ₹100 (-20%)</span>
+                  </div>
                   <h3 className="font-display font-semibold text-base sm:text-lg text-white">
                     12oz Eco Kraft Paper Cups (1,000 pk)
                   </h3>
-                  <p className="text-xs text-midnight-muted">
+                  <p className="text-xs text-slate-400 flex items-center gap-1.5">
+                    <Building className="h-3.5 w-3.5 text-slate-500" />
                     Apex Packaging Ltd &bull; Lucknow Transport Nagar
                   </p>
                 </div>
 
                 {/* Progress bar */}
-                <div className="space-y-1.5 text-left">
+                <div className="space-y-1.5 text-left p-3 rounded-lg bg-slate-950/60 border border-slate-800/80">
                   <div className="flex justify-between text-xs">
-                    <span className="text-midnight-muted">Wholesaler MOQ Progress</span>
-                    <span className="text-midnight-emerald font-semibold">850 / 1,000 cartons (85%)</span>
+                    <span className="text-slate-400">Wholesaler MOQ Progress</span>
+                    <span className="text-emerald-400 font-semibold font-mono">850 / 1,000 cartons (85%)</span>
                   </div>
-                  <div className="w-full h-2.5 bg-midnight-surface rounded-full overflow-hidden border border-midnight-border/40">
+                  <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-gradient-to-r from-teal-500 to-midnight-emerald rounded-full transition-all duration-500"
+                      className="h-full bg-emerald-500 rounded-full transition-all duration-500"
                       style={{ width: '85%' }}
                     />
+                  </div>
+                  <div className="flex justify-between text-[11px] text-slate-500 pt-0.5">
+                    <span>Retailer MOQ: 20 cartons</span>
+                    <span>Remaining to lock: 150 cartons</span>
                   </div>
                 </div>
 
                 {/* Participating Shops Chips */}
                 <div className="space-y-2 text-left">
-                  <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">
+                  <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider block">
                     Recent Buyer Contributions
                   </span>
                   <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                    <div className="p-2 sm:p-2.5 rounded-md bg-midnight-surface/60 border border-midnight-border/50 text-center">
+                    <div className="p-2 sm:p-2.5 rounded-lg bg-slate-950/50 border border-slate-800 text-center">
                       <p className="text-xs font-semibold text-white">Shop A</p>
-                      <p className="text-[10px] text-midnight-muted">20 cartons</p>
+                      <p className="text-[11px] font-mono text-emerald-400">20 cartons</p>
                     </div>
-                    <div className="p-2 sm:p-2.5 rounded-md bg-midnight-surface/60 border border-midnight-border/50 text-center">
+                    <div className="p-2 sm:p-2.5 rounded-lg bg-slate-950/50 border border-slate-800 text-center">
                       <p className="text-xs font-semibold text-white">Shop B</p>
-                      <p className="text-[10px] text-midnight-muted">15 cartons</p>
+                      <p className="text-[11px] font-mono text-emerald-400">15 cartons</p>
                     </div>
-                    <div className="p-2 sm:p-2.5 rounded-md bg-midnight-surface/60 border border-midnight-border/50 text-center">
+                    <div className="p-2 sm:p-2.5 rounded-lg bg-slate-950/50 border border-slate-800 text-center">
                       <p className="text-xs font-semibold text-white">Shop C</p>
-                      <p className="text-[10px] text-midnight-muted">25 cartons</p>
+                      <p className="text-[11px] font-mono text-emerald-400">25 cartons</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-2 border-t border-midnight-border/60">
-                  <div className="flex items-center gap-1.5 text-xs text-amber-400">
+                <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+                  <div className="flex items-center gap-1.5 text-xs text-amber-400 font-medium">
                     <Clock className="h-3.5 w-3.5" />
                     <span>14h 53m remaining</span>
                   </div>
@@ -559,65 +587,64 @@ export function LandingPage({
             </button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 xl:gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3.5 xl:gap-4">
             {[
               {
                 id: 'packaging',
                 title: 'Packaging & Disposables',
                 count: '34 Active Pools',
                 icon: Package,
-                color: 'from-amber-500/20 to-red-500/10',
               },
               {
                 id: 'food',
                 title: 'Cooking Oils & Ghee',
                 count: '18 Active Pools',
                 icon: Layers,
-                color: 'from-emerald-500/20 to-teal-500/10',
               },
               {
                 id: 'grains',
                 title: 'Bulk Grains & Pulses',
                 count: '26 Active Pools',
                 icon: Building,
-                color: 'from-cyan-500/20 to-blue-500/10',
               },
               {
                 id: 'cleaning',
                 title: 'Commercial Cleaning',
                 count: '15 Active Pools',
                 icon: Sparkles,
-                color: 'from-rose-500/20 to-purple-500/10',
               },
               {
                 id: 'spices',
                 title: 'Spices & Condiments',
                 count: '22 Active Pools',
                 icon: Flame,
-                color: 'from-orange-500/20 to-red-500/10',
               },
               {
                 id: 'kitchen',
                 title: 'Commercial Kitchen',
                 count: '14 Active Pools',
                 icon: Package,
-                color: 'from-indigo-500/20 to-blue-500/10',
               },
             ].map((cat) => {
               const IconComp = cat.icon;
+              const isSelected = selectedCategory === cat.id;
               return (
                 <div
                   key={cat.id}
                   onClick={() => setSelectedCategory(cat.id)}
-                  className={`p-4 rounded-xl border transition-all cursor-pointer group bg-gradient-to-br ${cat.color} ${
-                    selectedCategory === cat.id
-                      ? 'border-midnight-red shadow-md shadow-red-950/40 bg-midnight-surface'
-                      : 'border-midnight-border/70 bg-midnight-card hover:border-slate-400'
+                  className={`p-4 rounded-xl border transition-all cursor-pointer group ${
+                    isSelected
+                      ? 'border-red-500/80 bg-red-950/20 shadow-sm'
+                      : 'border-slate-800 bg-slate-900/40 hover:border-slate-700 hover:bg-slate-900/70'
                   }`}
                 >
-                  <IconComp className="h-6 w-6 text-white mb-2 group-hover:scale-110 transition-transform" />
-                  <h4 className="font-semibold text-sm text-white">{cat.title}</h4>
-                  <p className="text-xs text-midnight-muted mt-1">{cat.count}</p>
+                  <div className="h-8 w-8 rounded-lg bg-slate-800/80 border border-slate-700/60 flex items-center justify-center text-slate-300 group-hover:text-white transition-colors mb-2.5">
+                    <IconComp className="h-4 w-4" />
+                  </div>
+                  <h4 className="font-semibold text-sm text-white group-hover:text-red-400 transition-colors">
+                    {cat.title}
+                  </h4>
+                  <p className="text-xs text-slate-400 mt-1">{cat.count}</p>
                 </div>
               );
             })}
@@ -626,33 +653,33 @@ export function LandingPage({
       </section>
 
       {/* ── SECTION 3: TRENDING GROUP BUYS (THE CORE DIFFERENTIATOR) ── */}
-      <section id="trending-group-buys" className="py-14 border-b border-midnight-border/60 bg-midnight-bg">
+      <section id="trending-group-buys" className="py-14 border-b border-slate-800 bg-midnight-bg">
         <div className="marketplace-container space-y-8 text-left">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
-                <Flame className="h-5 w-5 text-midnight-red" />
+                <Flame className="h-5 w-5 text-red-500" />
                 <h2 className="font-display font-bold text-2xl text-white">
                   Trending Group Buys &bull; Collective Orders Closing Soon
                 </h2>
               </div>
-              <p className="text-xs text-midnight-muted mt-1">
+              <p className="text-xs text-slate-400 mt-1">
                 Participate with regional retailers. When the pool crosses wholesaler MOQ, factory discounts apply automatically.
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant="provenance" className="text-xs">
-                <ShieldCheck className="h-3.5 w-3.5 mr-1" />
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs font-medium text-slate-300">
+                <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
                 Verified Wholesalers
-              </Badge>
-              <Badge variant="payment" className="text-xs">
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs font-medium text-slate-300">
                 INR Minor Unit Billing
-              </Badge>
+              </span>
             </div>
           </div>
 
           {/* Product Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 xl:gap-7">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 xl:gap-6">
             {filteredPools.map((pool) => {
               const percentReached = Math.round((pool.pooledQuantity / pool.targetQuantity) * 100);
               const savingsPercent = Math.round(
@@ -662,30 +689,30 @@ export function LandingPage({
               return (
                 <div
                   key={pool.id}
-                  className="group rounded-xl border border-midnight-border/80 bg-midnight-card overflow-hidden hover:border-slate-500 hover:shadow-xl hover:shadow-black/70 transition-all flex flex-col justify-between"
+                  className="group rounded-xl border border-slate-800 bg-slate-900/40 overflow-hidden hover:border-slate-700 hover:bg-slate-900/60 transition-all flex flex-col justify-between"
                 >
                   <div>
                     {/* Image Header with Countdown & Badges */}
-                    <div className="relative h-48 sm:h-52 w-full bg-midnight-surface overflow-hidden">
+                    <div className="relative h-48 sm:h-52 w-full bg-slate-950 overflow-hidden">
                       <img
                         src={pool.image}
                         alt={pool.title}
-                        className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-80"
+                        className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-85"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-midnight-card via-transparent to-black/30" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-black/30" />
 
                       {/* Top Badges */}
                       <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
-                        <Badge variant="success" className="text-[11px] font-semibold py-0.5 px-2">
+                        <span className="px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-500/30 text-[11px] font-semibold text-emerald-300">
                           Save {savingsPercent}%
-                        </Badge>
-                        <Badge variant="neutral" className="text-[10px] py-0.5 px-2">
-                          MOQ_R: {pool.moqR} {pool.unit}
-                        </Badge>
+                        </span>
+                        <span className="px-2 py-0.5 rounded bg-slate-900/80 border border-slate-700/60 text-[10px] text-slate-300 font-medium">
+                          Min: {pool.moqR} {pool.unit}
+                        </span>
                       </div>
 
                       <div className="absolute top-2.5 right-2.5">
-                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/75 backdrop-blur-md border border-amber-500/40 text-[11px] text-amber-300 font-medium">
+                        <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-black/80 backdrop-blur-md border border-amber-500/30 text-[11px] text-amber-300 font-medium font-mono">
                           <Clock className="h-3 w-3" />
                           <span>
                             {pool.hoursRemaining}h {pool.minutesRemaining}m
@@ -696,7 +723,7 @@ export function LandingPage({
                       {/* Bottom Supplier Overlay */}
                       <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between text-xs text-slate-300">
                         <span className="truncate font-medium">{pool.supplier}</span>
-                        <div className="flex items-center gap-1 text-midnight-gold shrink-0">
+                        <div className="flex items-center gap-1 text-amber-400 shrink-0 font-medium">
                           <Star className="h-3 w-3 fill-current" />
                           <span>{pool.supplierRating}</span>
                         </div>
@@ -714,11 +741,11 @@ export function LandingPage({
                         <span className="text-xl font-bold font-display text-white tabular-nums">
                           ₹{pool.currentTierPrice}
                         </span>
-                        <span className="text-xs text-midnight-muted">/{pool.unit}</span>
+                        <span className="text-xs text-slate-400">/{pool.unit}</span>
                         <span className="text-xs text-slate-500 line-through">
                           ₹{pool.standardPrice}
                         </span>
-                        <span className="text-xs text-midnight-emerald font-semibold ml-auto">
+                        <span className="text-xs text-emerald-400 font-semibold ml-auto">
                           Bulk Tier Unlocked
                         </span>
                       </div>
@@ -727,20 +754,20 @@ export function LandingPage({
                       <div className="space-y-1">
                         <div className="flex justify-between text-xs font-medium">
                           <span className="text-slate-400">Pool Progress</span>
-                          <span className="text-midnight-emerald">
+                          <span className="text-emerald-400 font-mono">
                             {pool.pooledQuantity} / {pool.targetQuantity} {pool.unit} ({percentReached}%)
                           </span>
                         </div>
-                        <div className="w-full h-2 rounded-full bg-midnight-surface overflow-hidden border border-midnight-border/40">
+                        <div className="w-full h-2 rounded-full bg-slate-950 overflow-hidden border border-slate-800">
                           <div
-                            className="h-full bg-gradient-to-r from-teal-500 to-midnight-emerald transition-all duration-300"
+                            className="h-full bg-emerald-500 transition-all duration-300"
                             style={{ width: `${percentReached}%` }}
                           />
                         </div>
                       </div>
 
                       {/* Specifications Summary */}
-                      <div className="text-[11px] text-midnight-muted pt-1 border-t border-midnight-border/50 flex items-center justify-between">
+                      <div className="text-[11px] text-slate-400 pt-1 border-t border-slate-800 flex items-center justify-between">
                         <span>Wholesaler MOQ: {pool.moqW} {pool.unit}</span>
                         <span>Step: +{pool.step} {pool.unit}</span>
                       </div>
@@ -765,15 +792,15 @@ export function LandingPage({
       </section>
 
       {/* ── SECTION 4: DIRECT WHOLESALER CATALOG (INSTANT PROCUREMENT) ── */}
-      <section className="py-14 border-b border-midnight-border/60 bg-midnight-bg">
+      <section className="py-14 border-b border-slate-800 bg-midnight-bg">
         <div className="marketplace-container space-y-6 text-left">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="font-display font-bold text-xl text-white">
                 Direct Wholesale Catalog
               </h2>
-              <p className="text-xs text-midnight-muted">
-                Immediate wholesale ordering or trigger an AI-assisted group buy pool if single-store MOQ is unachievable
+              <p className="text-xs text-slate-400">
+                Order direct from verified manufacturers or pool demand with nearby retailers when factory MOQ is higher than needed
               </p>
             </div>
             <button
@@ -784,22 +811,22 @@ export function LandingPage({
                   window.location.href = '/suppliers';
                 }
               }}
-              className="text-xs font-semibold text-midnight-red hover:underline cursor-pointer"
+              className="text-xs font-semibold text-red-400 hover:text-red-300 transition-colors cursor-pointer"
             >
               Browse Complete Catalog &rarr;
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 xl:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 xl:gap-5">
             {catalogProducts.map((prod) => (
               <div
                 key={prod.id}
-                className="p-5 rounded-xl border border-midnight-border/70 bg-midnight-card hover:border-slate-500 transition-colors space-y-3 flex flex-col justify-between"
+                className="p-5 rounded-xl border border-slate-800 bg-slate-900/40 hover:border-slate-700 hover:bg-slate-900/70 transition-all space-y-3 flex flex-col justify-between"
               >
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between text-[11px] text-midnight-muted">
-                    <span>{prod.supplier}</span>
-                    <span className="flex items-center gap-0.5 text-midnight-gold">
+                  <div className="flex items-center justify-between text-[11px] text-slate-400">
+                    <span className="truncate max-w-[150px]">{prod.supplier}</span>
+                    <span className="flex items-center gap-0.5 text-amber-400 font-medium">
                       <Star className="h-3 w-3 fill-current" /> {prod.rating}
                     </span>
                   </div>
@@ -810,18 +837,18 @@ export function LandingPage({
                     <span className="text-lg font-bold text-white tabular-nums">
                       ₹{prod.unitPrice}
                     </span>
-                    <span className="text-xs text-midnight-muted">/{prod.unit}</span>
+                    <span className="text-xs text-slate-400">/{prod.unit}</span>
                   </div>
                   <p className="text-[11px] text-slate-400">
-                    Solo Direct MOQ: <strong>{prod.directMoq} {prod.unit}</strong>
+                    Solo Direct MOQ: <strong className="text-slate-200">{prod.directMoq} {prod.unit}</strong>
                   </p>
                 </div>
 
-                <div className="pt-2 space-y-2 border-t border-midnight-border/50">
+                <div className="pt-2.5 space-y-2 border-t border-slate-800">
                   <Button
                     variant="secondary"
                     size="sm"
-                    className="w-full text-xs"
+                    className="w-full text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/60"
                     onClick={() => toast.info(`Direct order request recorded for ${prod.title}`)}
                   >
                     Direct Wholesale Order
@@ -829,7 +856,7 @@ export function LandingPage({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-full text-xs text-slate-300 border-dashed"
+                    className="w-full text-xs text-slate-300 border-slate-700 hover:border-slate-500 hover:bg-slate-800"
                     onClick={() => {
                       toast.success(`Pool creation request generated for ${prod.title}!`);
                       setHowItWorksOpen(true);
@@ -845,49 +872,54 @@ export function LandingPage({
       </section>
 
       {/* ── SECTION 5: VERIFIED WHOLESALE SUPPLIERS ── */}
-      <section className="py-14 border-b border-midnight-border/60 bg-midnight-bg">
+      <section className="py-14 border-b border-slate-800 bg-midnight-bg">
         <div className="marketplace-container space-y-6 text-left">
           <div>
             <h2 className="font-display font-bold text-xl text-white">
               Verified Regional Wholesalers & Distributors
             </h2>
-            <p className="text-xs text-midnight-muted">
-              Pre-audited wholesale suppliers with guaranteed stock availability, minor-unit price transparency, and fulfillment verification
+            <p className="text-xs text-slate-400">
+              Direct-contract manufacturers and verified distributors with audited stock availability and certified fulfillment tracking
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 xl:gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 xl:gap-6">
             {verifiedSuppliers.map((sup) => (
               <div
                 key={sup.id}
-                className="p-6 rounded-xl border border-midnight-border bg-midnight-card hover:border-slate-500 transition-all space-y-4"
+                className="p-5 sm:p-6 rounded-xl border border-slate-800 bg-slate-900/40 hover:border-slate-700 hover:bg-slate-900/60 transition-all space-y-4"
               >
                 <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <h3 className="font-display font-semibold text-base text-white">
-                      {sup.name}
-                    </h3>
-                    <p className="text-xs text-midnight-muted flex items-center gap-1">
-                      <Building className="h-3 w-3 text-midnight-red" />
-                      {sup.hub}
-                    </p>
+                  <div className="flex items-start gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-sm font-bold text-white shrink-0">
+                      {sup.name.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="space-y-0.5">
+                      <h3 className="font-display font-semibold text-base text-white">
+                        {sup.name}
+                      </h3>
+                      <p className="text-xs text-slate-400 flex items-center gap-1">
+                        <MapPin className="h-3 w-3 text-red-400 shrink-0" />
+                        {sup.hub}
+                      </p>
+                    </div>
                   </div>
-                  <Badge variant="provenance" className="text-xs font-semibold">
-                    <ShieldCheck className="h-3.5 w-3.5 mr-1 text-cyan-300" />
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-950/60 border border-emerald-500/30 text-[11px] font-medium text-emerald-300">
+                    <ShieldCheck className="h-3 w-3" />
                     Verified
-                  </Badge>
+                  </span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-xs pt-1">
-                  <div className="p-2 rounded bg-midnight-surface/60 border border-midnight-border/40">
-                    <span className="text-[10px] text-midnight-muted block">Rating</span>
-                    <span className="font-bold text-midnight-gold flex items-center gap-1">
+                  <div className="p-2.5 rounded-lg bg-slate-950/50 border border-slate-800/80">
+                    <span className="text-[10px] text-slate-400 block">Rating</span>
+                    <span className="font-bold text-amber-400 flex items-center gap-1 mt-0.5">
                       <Star className="h-3 w-3 fill-current" /> {sup.rating} / 5.0
                     </span>
                   </div>
-                  <div className="p-2 rounded bg-midnight-surface/60 border border-midnight-border/40">
-                    <span className="text-[10px] text-midnight-muted block">Fulfillment</span>
-                    <span className="font-bold text-midnight-emerald">{sup.fulfillmentRate}</span>
+                  <div className="p-2.5 rounded-lg bg-slate-950/50 border border-slate-800/80">
+                    <span className="text-[10px] text-slate-400 block">Fulfillment</span>
+                    <span className="font-bold text-emerald-400 mt-0.5 block">{sup.fulfillmentRate}</span>
                   </div>
                 </div>
 
@@ -897,7 +929,7 @@ export function LandingPage({
                     {sup.categories.map((c) => (
                       <span
                         key={c}
-                        className="px-2 py-0.5 rounded-full bg-midnight-surface text-[11px] text-slate-300 border border-midnight-border/60"
+                        className="px-2.5 py-0.5 rounded-full bg-slate-800 text-[11px] text-slate-300 border border-slate-700/60"
                       >
                         {c}
                       </span>
@@ -908,7 +940,7 @@ export function LandingPage({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="w-full text-xs"
+                  className="w-full text-xs border-slate-700 hover:border-slate-500 hover:bg-slate-800 text-slate-200"
                   onClick={() => toast.info(`Viewing all active pools for ${sup.name}`)}
                 >
                   View {sup.activePoolsCount} Active Pools
@@ -920,57 +952,59 @@ export function LandingPage({
       </section>
 
       {/* ── SECTION 6: HOW COLLECTIVE BUYING WORKS BANNER / TEASER ── */}
-      <section className="py-14 bg-gradient-to-r from-midnight-card via-[#161C28] to-midnight-card border-b border-midnight-border/70">
+      <section className="py-14 bg-[#0A0D14] border-b border-slate-800">
         <div className="marketplace-container text-center space-y-6">
-          <Badge variant="pool" className="text-xs py-1 px-3">
-            <Sparkles className="h-3 w-3 mr-1" />
-            The CoBuy AI Collective Engine
-          </Badge>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs font-medium text-slate-300">
+            <span>Procurement Architecture</span>
+          </div>
 
           <h2 className="font-display font-bold text-2xl sm:text-3xl text-white">
             How Collective Procurement Works for Your Business
           </h2>
+          <p className="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto -mt-3">
+            Aggregate small orders with nearby retailers to cross factory MOQ thresholds and unlock bulk prices.
+          </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 xl:gap-8 text-left w-full max-w-6xl xl:max-w-7xl mx-auto pt-4">
-            <div className="p-6 rounded-xl border border-midnight-border/60 bg-midnight-card/80 space-y-3">
-              <div className="h-8 w-8 rounded-lg bg-midnight-red/20 text-midnight-red flex items-center justify-center font-bold text-sm font-display">
-                1
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 xl:gap-6 text-left w-full max-w-5xl mx-auto pt-4">
+            <div className="p-6 rounded-xl border border-slate-800 bg-slate-900/40 space-y-3">
+              <span className="inline-block text-xs font-mono font-bold text-red-400 px-2 py-0.5 rounded bg-red-950/40 border border-red-500/20">
+                01
+              </span>
               <h4 className="font-semibold text-sm text-white">Pool Regional Demand</h4>
-              <p className="text-xs text-midnight-muted leading-relaxed">
-                Join or initiate a group-buy pool. Independent shops contribute small quantities without risking large inventory lockup.
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Join an active group-buy pool or create one for your product. Independent shops commit small carton quantities without tying up large working capital.
               </p>
             </div>
 
-            <div className="p-6 rounded-xl border border-midnight-border/60 bg-midnight-card/80 space-y-3">
-              <div className="h-8 w-8 rounded-lg bg-midnight-emerald/20 text-midnight-emerald flex items-center justify-center font-bold text-sm font-display">
-                2
-              </div>
+            <div className="p-6 rounded-xl border border-slate-800 bg-slate-900/40 space-y-3">
+              <span className="inline-block text-xs font-mono font-bold text-emerald-400 px-2 py-0.5 rounded bg-emerald-950/40 border border-emerald-500/20">
+                02
+              </span>
               <h4 className="font-semibold text-sm text-white">Hit Factory MOQ</h4>
-              <p className="text-xs text-midnight-muted leading-relaxed">
-                Combined order volumes hit the wholesaler’s Minimum Order Quantity ($MOQ_W$), automatically unlocking wholesale discount tiers.
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Combined order volumes hit the wholesaler’s Minimum Order Quantity ($MOQ_W$), automatically unlocking wholesale discount tiers for all participants.
               </p>
             </div>
 
-            <div className="p-6 rounded-xl border border-midnight-border/60 bg-midnight-card/80 space-y-3">
-              <div className="h-8 w-8 rounded-lg bg-midnight-gold/20 text-midnight-gold flex items-center justify-center font-bold text-sm font-display">
-                3
-              </div>
+            <div className="p-6 rounded-xl border border-slate-800 bg-slate-900/40 space-y-3">
+              <span className="inline-block text-xs font-mono font-bold text-amber-400 px-2 py-0.5 rounded bg-amber-950/40 border border-amber-500/20">
+                03
+              </span>
               <h4 className="font-semibold text-sm text-white">Unlock Tiered Savings</h4>
-              <p className="text-xs text-midnight-muted leading-relaxed">
-                Review transparent per-shop itemization. Price snapshots are locked, payments captured securely, and orders dispatched directly.
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Review transparent per-shop itemization. Price snapshots are locked, payments captured securely via escrow, and orders dispatched to your regional hub.
               </p>
             </div>
           </div>
 
           <div className="pt-2 px-2">
             <Button
-              variant="primary"
+              variant="outline"
               size="lg"
-              className="font-semibold text-xs sm:text-sm whitespace-normal text-center h-auto py-3 px-4 sm:px-6"
+              className="font-semibold text-xs sm:text-sm border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white hover:border-slate-500"
               onClick={() => setHowItWorksOpen(true)}
             >
-              Explore Full Interactive Mechanics (Calculator &amp; Timeline) &rarr;
+              Open Pricing Calculator &amp; How It Works &rarr;
             </Button>
           </div>
         </div>

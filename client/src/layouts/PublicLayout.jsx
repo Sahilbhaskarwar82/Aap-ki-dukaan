@@ -68,7 +68,7 @@ export function PublicLayout({
 
   const categories = [
     { id: 'all', label: 'All Categories' },
-    { id: 'group-buys', label: '🔥 Active Group Buys', highlight: true },
+    { id: 'group-buys', label: 'Active Group Buys', highlight: true },
     { id: 'packaging', label: 'Packaging & Disposables' },
     { id: 'food', label: 'Food & Beverages' },
     { id: 'grains', label: 'Grains & Pulses' },
@@ -95,8 +95,8 @@ export function PublicLayout({
                     <span className="font-display font-bold text-lg tracking-tight text-white group-hover:text-red-400 transition-colors">
                       Aap Ki Dukan
                     </span>
-                    <span className="text-[10px] text-midnight-muted tracking-wider uppercase -mt-1 font-medium">
-                      Powered by <span className="text-midnight-red font-semibold">CoBuy AI</span>
+                    <span className="text-[10px] text-slate-400 tracking-wider -mt-0.5 font-normal">
+                      B2B Wholesale &bull; <span className="text-slate-400 font-medium">CoBuy AI</span>
                     </span>
                   </div>
                 </a>
