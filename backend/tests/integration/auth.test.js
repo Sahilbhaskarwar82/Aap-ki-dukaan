@@ -73,8 +73,11 @@ describe("Authentication & RBAC Integration Tests (PRK-03)", () => {
       expect(res.headers["set-cookie"]).toBeDefined();
 
       // Check database state
-      const dbUser = await User.findOne({ email: "ramesh.gupta@kirana.com" });
+      const dbUser = await User.findOne({ email: "ramesh.gupta@kirana.com" }).select("+verificationOtp");
       expect(dbUser).not.toBeNull();
+      expect(dbUser.isVerified).toBe(false);
+      expect(dbUser.status).toBe("PENDING_VERIFICATION");
+      expect(dbUser.verificationOtp).toBeDefined();
       const dbShop = await Shop.findOne({ ownerUserId: dbUser._id });
       expect(dbShop).not.toBeNull();
       expect(dbShop.name).toBe("Gupta General Store");
@@ -127,7 +130,8 @@ describe("Authentication & RBAC Integration Tests (PRK-03)", () => {
       await request(app).post("/api/auth/register").send(validShopOwnerPayload);
     });
 
-    it("logs in with valid credentials and returns safe user, shop, and JWT", async () => {
+    it("logs in with valid credentials via OTP verification (PRK-03)", async () => {
+      // Step 1: Submit email & password -> credentials verified, OTP dispatched to email
       const res = await request(app)
         .post("/api/auth/login")
         .send({
@@ -137,10 +141,23 @@ describe("Authentication & RBAC Integration Tests (PRK-03)", () => {
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
-      expect(res.body.data).toHaveProperty("token");
-      expect(res.body.data.user.email).toBe("ramesh.gupta@kirana.com");
-      expect(res.body.data.user).not.toHaveProperty("passwordHash");
-      expect(res.body.data.shop.name).toBe("Gupta General Store");
+      expect(res.body.data.requireOtp).toBe(true);
+      expect(res.body.data.email).toBe("ramesh.gupta@kirana.com");
+
+      // Step 2: Submit OTP received on email -> tokens issued, safe user and shop returned
+      const otpRes = await request(app)
+        .post("/api/auth/login-with-otp")
+        .send({
+          email: "ramesh.gupta@kirana.com",
+          otp: "123456",
+        });
+
+      expect(otpRes.status).toBe(200);
+      expect(otpRes.body.success).toBe(true);
+      expect(otpRes.body.data).toHaveProperty("token");
+      expect(otpRes.body.data.user.email).toBe("ramesh.gupta@kirana.com");
+      expect(otpRes.body.data.user).not.toHaveProperty("passwordHash");
+      expect(otpRes.body.data.shop.name).toBe("Gupta General Store");
     });
 
     it("rejects wrong password with 401 and INVALID_CREDENTIALS", async () => {

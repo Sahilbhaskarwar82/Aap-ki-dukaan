@@ -97,13 +97,24 @@ export function AuthProvider({ children }) {
 
   // ── Login ──────────────────────────────────────────────────────────────────
   /**
-   * Authenticate with email and password.
-   * Returns { success, user, shop, error } — never throws to the caller.
+   * Authenticate with email and password (and optional 2FA OTP).
+   * Returns { success, user, shop, requireOtp, error } — never throws to the caller.
    */
-  const login = useCallback(async ({ email, password }) => {
+  const login = useCallback(async ({ email, password, otp, skipOtp }) => {
     setAuthError(null);
     try {
-      const result = await loginUser({ email, password });
+      const result = await loginUser({ email, password, otp, skipOtp });
+
+      // If backend prompts for OTP on email (2-step authentication)
+      if (result.data?.requireOtp) {
+        return {
+          success: true,
+          requireOtp: true,
+          email: result.data.email,
+          message: result.message,
+        };
+      }
+
       const { user: loggedUser, shop: loggedShop, token } = result.data;
 
       if (token) {
@@ -115,7 +126,7 @@ export function AuthProvider({ children }) {
         setShop(loggedShop || null);
       }
 
-      return { success: true, user: loggedUser, shop: loggedShop };
+      return { success: true, user: loggedUser, shop: loggedShop, token };
     } catch (err) {
       const message = err.message || 'Login failed. Please try again.';
       if (mountedRef.current) {

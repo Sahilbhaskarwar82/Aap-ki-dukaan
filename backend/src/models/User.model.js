@@ -46,12 +46,12 @@ const userSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: ["ACTIVE", "DISABLED", "PENDING_VERIFICATION"],
-      default: "ACTIVE",
+      default: "PENDING_VERIFICATION",
       required: true,
     },
     isVerified: {
       type: Boolean,
-      default: true,
+      default: false,
     },
     verificationOtp: {
       type: String,

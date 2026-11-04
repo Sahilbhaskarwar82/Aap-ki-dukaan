@@ -456,66 +456,80 @@ describe('HIM-04: RegisterPage', () => {
   });
 });
 
-// ── LoginPage OTP Mode tests ──────────────────────────────────────────────────
-describe('LoginPage: Sign in with OTP & Passwordless Flow', () => {
+// ── LoginPage 2-Step Login Flow tests ─────────────────────────────────────────
+describe('LoginPage: 2-Step Login Flow (Email + Password -> OTP -> Login)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('renders "Sign in with OTP" tab and switches between Password and OTP modes', async () => {
-    setupAuth();
-    render(<LoginPage onNavigateToRegister={onNavigateToRegister} />);
-
-    const otpTab = screen.getByRole('button', { name: /Sign in with OTP/i });
-    expect(otpTab).toBeInTheDocument();
-
-    await userEvent.click(otpTab);
-    expect(screen.getByRole('button', { name: /Send 6-Digit Login Code/i })).toBeInTheDocument();
-
-    const pwdTab = screen.getByRole('button', { name: /Password Sign-In/i });
-    await userEvent.click(pwdTab);
-    expect(screen.getByRole('button', { name: /Sign in to your account/i })).toBeInTheDocument();
-  });
-
-  it('requests OTP and verifies successfully to complete passwordless login', async () => {
-    const { sendLoginOtp, loginWithOtp } = setupAuth({
-      sendLoginOtp: vi.fn().mockResolvedValue({ success: true }),
+  it('submits email & password, receives OTP challenge on email, enters OTP, and completes login', async () => {
+    const { login, loginWithOtp } = setupAuth({
+      login: vi.fn().mockResolvedValue({
+        success: true,
+        requireOtp: true,
+        email: 'ramesh@kirana.com',
+      }),
       loginWithOtp: vi.fn().mockResolvedValue({
         success: true,
-        user: { name: 'Prakhar Gupta', role: 'SHOP_OWNER' },
+        user: { name: 'Ramesh Gupta', role: 'SHOP_OWNER' },
       }),
     });
 
     render(<LoginPage onNavigateToRegister={onNavigateToRegister} onLoginSuccess={onLoginSuccess} />);
 
-    // Switch to OTP tab
-    await userEvent.click(screen.getByRole('button', { name: /Sign in with OTP/i }));
+    // Step 1: User enters email and password
+    await userEvent.type(screen.getByLabelText(/email address/i), 'ramesh@kirana.com');
+    await userEvent.type(screen.getByLabelText(/^password$/i), 'SecurePassword123!');
+    await userEvent.click(screen.getByRole('button', { name: /sign in to your account/i }));
 
-    // Enter email
-    const emailInput = screen.getByLabelText(/Registered email address/i);
-    await userEvent.type(emailInput, 'prakhar@kirana.com');
+    await waitFor(() => expect(login).toHaveBeenCalledWith({
+      email: 'ramesh@kirana.com',
+      password: 'SecurePassword123!',
+    }));
 
-    // Click send OTP
-    await userEvent.click(screen.getByRole('button', { name: /Send 6-Digit Login Code/i }));
+    // Step 2: Form transitions to OTP entry
+    expect(await screen.findByText(/Enter 6-Digit OTP Code/i)).toBeInTheDocument();
+    expect(screen.getByText('ramesh@kirana.com')).toBeInTheDocument();
 
-    await waitFor(() => expect(sendLoginOtp).toHaveBeenCalledWith('prakhar@kirana.com'));
-
-    // Step 2: OTP input rendered
-    const otpInput = await screen.findByPlaceholderText('123456');
+    const otpInput = document.querySelector('#otp-login-code');
     expect(otpInput).toBeInTheDocument();
 
-    // Type 6-digit code
+    // User types OTP code and verifies
     await userEvent.type(otpInput, '123456');
     await userEvent.click(screen.getByRole('button', { name: /Verify & Launch Workspace/i }));
 
     await waitFor(() => expect(loginWithOtp).toHaveBeenCalledWith({
-      email: 'prakhar@kirana.com',
+      email: 'ramesh@kirana.com',
       otp: '123456',
     }));
 
     await waitFor(() => expect(onLoginSuccess).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'Prakhar Gupta' })
+      expect.objectContaining({ name: 'Ramesh Gupta' })
     ));
+  });
+
+  it('allows going back from OTP step to email and password form', async () => {
+    setupAuth({
+      login: vi.fn().mockResolvedValue({
+        success: true,
+        requireOtp: true,
+        email: 'ramesh@kirana.com',
+      }),
+    });
+
+    render(<LoginPage onNavigateToRegister={onNavigateToRegister} />);
+
+    await userEvent.type(screen.getByLabelText(/email address/i), 'ramesh@kirana.com');
+    await userEvent.type(screen.getByLabelText(/^password$/i), 'SecurePassword123!');
+    await userEvent.click(screen.getByRole('button', { name: /sign in to your account/i }));
+
+    expect(await screen.findByText(/Enter 6-Digit OTP Code/i)).toBeInTheDocument();
+
+    const backBtn = screen.getByRole('button', { name: /← Back to email and password/i });
+    await userEvent.click(backBtn);
+
+    expect(screen.getByLabelText(/email address/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^password$/i)).toBeInTheDocument();
   });
 });
 

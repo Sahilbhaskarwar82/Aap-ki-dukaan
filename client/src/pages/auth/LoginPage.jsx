@@ -157,8 +157,8 @@ export default function LoginPage({
 }) {
   const { login, loginWithOtp, sendLoginOtp } = useAuth();
 
-  // Mode: 'PASSWORD' or 'OTP'
-  const [authMode, setAuthMode] = useState('PASSWORD');
+  // Single unified flow: 'CREDENTIALS' (email + password) -> 'OTP' (email verification code)
+  const [step, setStep] = useState('CREDENTIALS');
 
   // Form fields
   const [email, setEmail] = useState('');
@@ -170,7 +170,6 @@ export default function LoginPage({
   const [demoLoading, setDemoLoading] = useState(null);
 
   // OTP Login state
-  const [otpSent, setOtpSent] = useState(false);
   const [loginOtp, setLoginOtp] = useState('');
   const [cooldown, setCooldown] = useState(0);
   const [resending, setResending] = useState(false);
@@ -183,7 +182,7 @@ export default function LoginPage({
     return () => clearTimeout(timer);
   }, [cooldown]);
 
-  // ── Password Sign-in Submit ────────────────────────────────────────────────
+  // ── Step 1: Submit Email and Password Credentials ──────────────────────────
   async function handleSubmit(e) {
     e.preventDefault();
     setServerError('');
@@ -196,41 +195,20 @@ export default function LoginPage({
     try {
       const result = await login({ email: email.trim(), password });
       if (result.success) {
-        toast.success('Welcome back!', { description: `Signed in as ${result.user.name}` });
-        if (typeof onLoginSuccess === 'function') {
-          onLoginSuccess(result.user);
+        if (result.requireOtp) {
+          setStep('OTP');
+          setCooldown(30);
+          toast.success('Sign-in code dispatched!', {
+            description: `Check your inbox (${email.trim()}) or server logs`,
+          });
+        } else if (result.user) {
+          toast.success('Welcome back!', { description: `Signed in as ${result.user.name}` });
+          if (typeof onLoginSuccess === 'function') {
+            onLoginSuccess(result.user);
+          }
         }
       } else {
         setServerError(result.error || 'Login failed. Please check your credentials.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // ── Send Login OTP ─────────────────────────────────────────────────────────
-  async function handleSendLoginOtp(e) {
-    e?.preventDefault();
-    setServerError('');
-    setFieldErrors({});
-
-    const cleanEmail = email.trim().toLowerCase();
-    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
-      setFieldErrors({ email: 'Please enter a valid email address.' });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const result = await sendLoginOtp(cleanEmail);
-      if (result.success) {
-        setOtpSent(true);
-        setCooldown(30);
-        toast.success('Sign-in OTP dispatched!', {
-          description: `Check your inbox (${cleanEmail}) or server logs`,
-        });
-      } else {
-        setServerError(result.error || 'Failed to dispatch login OTP.');
       }
     } finally {
       setLoading(false);
@@ -255,7 +233,7 @@ export default function LoginPage({
     }
   }
 
-  // ── OTP Sign-in Submit ─────────────────────────────────────────────────────
+  // ── Step 2: Submit 6-Digit Email OTP to Complete Sign-in ───────────────────
   async function handleOtpSubmit(e) {
     e.preventDefault();
     setServerError('');
@@ -293,9 +271,18 @@ export default function LoginPage({
     try {
       const result = await login({ email: account.email, password: account.password });
       if (result.success) {
-        toast.success(`Signed in as ${account.label}`, { description: account.name });
-        if (typeof onLoginSuccess === 'function') {
-          onLoginSuccess(result.user);
+        if (result.requireOtp) {
+          setEmail(account.email);
+          setStep('OTP');
+          setCooldown(30);
+          toast.success(`Code dispatched for ${account.label}!`, {
+            description: 'Enter 123456 or the code sent to your email',
+          });
+        } else if (result.user) {
+          toast.success(`Signed in as ${account.label}`, { description: account.name });
+          if (typeof onLoginSuccess === 'function') {
+            onLoginSuccess(result.user);
+          }
         }
       } else {
         setServerError(
@@ -327,38 +314,14 @@ export default function LoginPage({
           </div>
           <h1 className="text-3xl font-bold text-midnight-text">Sign in</h1>
           <p className="text-midnight-muted text-sm">
-            Access your group-buying workspace.
+            {step === 'CREDENTIALS'
+              ? 'Access your group-buying workspace.'
+              : 'Enter the 6-digit one-time passcode sent to your registered email.'}
           </p>
         </div>
 
         {/* ── Login Form Card ── */}
         <div className="bg-midnight-card border border-midnight-border rounded-xl p-8 shadow-lg shadow-black/40 space-y-5">
-
-          {/* ── Auth Mode Selector Tabs ── */}
-          <div className="flex border-b border-midnight-border/60 pb-3 gap-2">
-            <button
-              type="button"
-              onClick={() => { setAuthMode('PASSWORD'); setServerError(''); }}
-              className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                authMode === 'PASSWORD'
-                  ? 'bg-midnight-surface text-white border border-midnight-border shadow-xs'
-                  : 'text-midnight-muted hover:text-white'
-              }`}
-            >
-              Password Sign-In
-            </button>
-            <button
-              type="button"
-              onClick={() => { setAuthMode('OTP'); setServerError(''); }}
-              className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                authMode === 'OTP'
-                  ? 'bg-midnight-surface text-white border border-midnight-border shadow-xs'
-                  : 'text-midnight-muted hover:text-white'
-              }`}
-            >
-              Sign in with OTP ⚡
-            </button>
-          </div>
 
           {serverError && (
             <Alert variant="error" role="alert">
@@ -366,8 +329,8 @@ export default function LoginPage({
             </Alert>
           )}
 
-          {/* ── MODE 1: Standard Password Sign-in ── */}
-          {authMode === 'PASSWORD' && (
+          {/* ── STEP 1: Email and Password Credentials Form ── */}
+          {step === 'CREDENTIALS' && (
             <form onSubmit={handleSubmit} noValidate className="space-y-4">
               <Input
                 id="login-email"
@@ -424,99 +387,67 @@ export default function LoginPage({
                 disabled={loading || demoLoading !== null}
                 aria-label="Sign in to your account"
               >
-                {loading ? 'Signing in…' : 'Sign in'}
+                {loading ? 'Verifying…' : 'Sign in'}
                 {!loading && <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />}
               </Button>
             </form>
           )}
 
-          {/* ── MODE 2: Passwordless OTP Sign-in ── */}
-          {authMode === 'OTP' && (
-            <div className="space-y-4">
-              {!otpSent ? (
-                <form onSubmit={handleSendLoginOtp} className="space-y-4">
-                  <Input
-                    id="otp-login-email"
-                    type="email"
-                    label="Registered email address"
-                    placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => { setEmail(e.target.value); setFieldErrors((p) => ({ ...p, email: '' })); }}
-                    error={fieldErrors.email}
-                    autoComplete="email"
-                    disabled={loading}
-                    required
-                    autoFocus
-                  />
-                  <p className="text-xs text-midnight-muted">
-                    We will send a 6-digit one-time code to your registered email address.
-                  </p>
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    size="lg"
-                    className="w-full"
-                    loading={loading}
-                  >
-                    Send 6-Digit Login Code
-                  </Button>
-                </form>
-              ) : (
-                <form onSubmit={handleOtpSubmit} className="space-y-4">
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <label className="block text-xs font-semibold text-midnight-text">
-                        Enter 6-Digit OTP Code
-                      </label>
-                      <button
-                        type="button"
-                        onClick={handleResendLoginOtp}
-                        disabled={cooldown > 0 || resending}
-                        className="text-xs text-midnight-red hover:underline disabled:opacity-50"
-                      >
-                        {resending ? 'Sending...' : cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend Code'}
-                      </button>
-                    </div>
-                    <Input
-                      id="otp-login-code"
-                      type="text"
-                      maxLength={6}
-                      value={loginOtp}
-                      onChange={(e) => {
-                        setLoginOtp(e.target.value.replace(/\D/g, ''));
-                        setFieldErrors((p) => ({ ...p, otp: '' }));
-                      }}
-                      error={fieldErrors.otp}
-                      placeholder="123456"
-                      className="text-center font-mono tracking-widest text-lg"
-                      autoFocus
-                      required
-                    />
-                    <p className="text-[11px] text-midnight-muted">
-                      Code sent to <span className="text-white font-medium">{email}</span>. (Demo code: <code className="text-white font-mono">123456</code>).
-                    </p>
-                  </div>
-
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    size="lg"
-                    className="w-full"
-                    loading={loading}
-                  >
-                    Verify & Launch Workspace
-                  </Button>
-
+          {/* ── STEP 2: 6-Digit OTP Verification Form ── */}
+          {step === 'OTP' && (
+            <form onSubmit={handleOtpSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <label className="block text-xs font-semibold text-midnight-text">
+                    Enter 6-Digit OTP Code
+                  </label>
                   <button
                     type="button"
-                    onClick={() => { setOtpSent(false); setLoginOtp(''); }}
-                    className="w-full text-center text-xs text-midnight-muted hover:text-white pt-1"
+                    onClick={handleResendLoginOtp}
+                    disabled={cooldown > 0 || resending}
+                    className="text-xs text-midnight-red hover:underline disabled:opacity-50"
                   >
-                    ← Use a different email
+                    {resending ? 'Sending...' : cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend Code'}
                   </button>
-                </form>
-              )}
-            </div>
+                </div>
+                <Input
+                  id="otp-login-code"
+                  type="text"
+                  maxLength={6}
+                  value={loginOtp}
+                  onChange={(e) => {
+                    setLoginOtp(e.target.value.replace(/\D/g, ''));
+                    setFieldErrors((p) => ({ ...p, otp: '' }));
+                  }}
+                  error={fieldErrors.otp}
+                  placeholder="123456"
+                  className="text-center font-mono tracking-widest text-lg"
+                  autoFocus
+                  required
+                />
+                <p className="text-[11px] text-midnight-muted">
+                  Code sent to <span className="text-white font-medium">{email}</span>. (Demo code: <code className="text-white font-mono">123456</code>).
+                </p>
+              </div>
+
+              <Button
+                type="submit"
+                variant="primary"
+                size="lg"
+                className="w-full"
+                loading={loading}
+              >
+                Verify & Launch Workspace
+              </Button>
+
+              <button
+                type="button"
+                onClick={() => { setStep('CREDENTIALS'); setLoginOtp(''); }}
+                className="w-full text-center text-xs text-midnight-muted hover:text-white pt-1"
+              >
+                ← Back to email and password
+              </button>
+            </form>
           )}
 
           {/* ── Register link ── */}

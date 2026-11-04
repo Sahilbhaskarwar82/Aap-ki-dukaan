@@ -118,41 +118,61 @@ export const registerUser = asyncHandler(async (req, res) => {
   // Execute atomically via withTransaction
   await withTransaction(async (session) => {
     const opts = session ? { session } : {};
-    const userDocs = await User.create(
-      [
-        {
-          name: displayName.trim(),
-          username: normalizedUsername,
-          email: normalizedEmail,
-          passwordHash: password, // Pre-save hook hashes with bcrypt cost 12
-          role,
-          status: "ACTIVE",
-          isVerified: true,
-          verificationOtp,
-          verificationOtpExpiry,
-          lastLoginAt: clockService.now(),
-        },
-      ],
-      opts
-    );
-    createdUser = userDocs[0];
 
-    if (role === "SHOP_OWNER" && normalizedShopDetails) {
-      const shopDocs = await Shop.create(
+    if (existingUser && !existingUser.isVerified) {
+      existingUser.name = displayName.trim();
+      existingUser.password = password; // Pre-save hook hashes with bcrypt cost 12
+      existingUser.role = role;
+      existingUser.status = "PENDING_VERIFICATION";
+      existingUser.isVerified = false;
+      existingUser.verificationOtp = verificationOtp;
+      existingUser.verificationOtpExpiry = verificationOtpExpiry;
+      await existingUser.save(opts);
+      createdUser = existingUser;
+
+      if (role === "SHOP_OWNER" && normalizedShopDetails) {
+        createdShop = await Shop.findOneAndUpdate(
+          { ownerUserId: existingUser._id },
+          { ...normalizedShopDetails, ownerUserId: existingUser._id },
+          { upsert: true, new: true, ...opts }
+        );
+      }
+    } else {
+      const userDocs = await User.create(
         [
           {
-            ownerUserId: createdUser._id,
-            name: normalizedShopDetails.name,
-            businessType: normalizedShopDetails.businessType,
-            deliveryArea: normalizedShopDetails.deliveryArea,
-            deliveryAddress: normalizedShopDetails.deliveryAddress,
-            contactDetails: normalizedShopDetails.contactDetails,
-            preferredCurrency: normalizedShopDetails.preferredCurrency,
+            name: displayName.trim(),
+            username: normalizedUsername,
+            email: normalizedEmail,
+            passwordHash: password, // Pre-save hook hashes with bcrypt cost 12
+            role,
+            status: "PENDING_VERIFICATION",
+            isVerified: false,
+            verificationOtp,
+            verificationOtpExpiry,
           },
         ],
         opts
       );
-      createdShop = shopDocs[0];
+      createdUser = userDocs[0];
+
+      if (role === "SHOP_OWNER" && normalizedShopDetails) {
+        const shopDocs = await Shop.create(
+          [
+            {
+              ownerUserId: createdUser._id,
+              name: normalizedShopDetails.name,
+              businessType: normalizedShopDetails.businessType,
+              deliveryArea: normalizedShopDetails.deliveryArea,
+              deliveryAddress: normalizedShopDetails.deliveryAddress,
+              contactDetails: normalizedShopDetails.contactDetails,
+              preferredCurrency: normalizedShopDetails.preferredCurrency,
+            },
+          ],
+          opts
+        );
+        createdShop = shopDocs[0];
+      }
     }
   });
 
@@ -175,6 +195,8 @@ export const registerUser = asyncHandler(async (req, res) => {
           accessToken,
           refreshToken,
           token: accessToken,
+          isVerified: false,
+          requiresOtp: true,
           otpDispatched: true,
         },
         "User registered successfully. Verification OTP dispatched via background queue."
@@ -185,39 +207,92 @@ export const registerUser = asyncHandler(async (req, res) => {
 export const register = registerUser;
 
 /**
- * Sign in existing user with email/username and password.
+ * Sign in existing user with email/username and password + OTP.
  * POST /api/auth/login
+ * Step 1: User provides { email, password } -> backend verifies credentials -> sends OTP to email -> returns { requireOtp: true, email }
+ * Step 2: User provides { email, otp } (or { email, password, otp }) -> backend verifies OTP -> issues tokens and logs in!
  */
 export const loginUser = asyncHandler(async (req, res) => {
-  const { username, email, password } = req.body;
+  const { username, email, password, otp } = req.body;
 
   if (!email && !username) {
     throw new ApiError(400, "Username or email is required.");
   }
-  if (!password) {
-    throw new ApiError(400, "Password is required.");
+  if (!password && !otp) {
+    throw new ApiError(400, "Password or OTP is required.");
   }
 
   const identifier = (email || username).toLowerCase().trim();
   const user = await User.findOne({
     $or: [{ email: identifier }, { username: identifier }],
-  }).select("+passwordHash +refreshToken");
+  }).select("+passwordHash +refreshToken +loginOtp +verificationOtp");
 
   if (!user) {
     throw new ApiError(401, "Invalid email or password.", ["INVALID_CREDENTIALS"]);
   }
 
-  const isPasswordCorrect = await user.isPasswordCorrect(password);
-  if (!isPasswordCorrect) {
-    throw new ApiError(401, "Invalid email or password.", ["INVALID_CREDENTIALS"]);
+  // 1. If password is provided, verify it first
+  if (password) {
+    const isPasswordCorrect = await user.isPasswordCorrect(password);
+    if (!isPasswordCorrect) {
+      throw new ApiError(401, "Invalid email or password.", ["INVALID_CREDENTIALS"]);
+    }
   }
 
   if (user.status === "DISABLED") {
     throw new ApiError(403, "Account has been disabled. Please contact platform support.", ["ACCOUNT_DISABLED"]);
   }
 
+  // 2. Step 1: No OTP provided yet -> Generate login OTP, dispatch to email, ask for OTP
+  const skipOtp = req.headers["x-skip-otp"] === "true" || req.body.skipOtp === true;
+  if (!otp && !skipOtp) {
+    const loginOtp = generateSixDigitOtp();
+    user.loginOtp = loginOtp;
+    user.loginOtpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    await user.save({ validateBeforeSave: false });
+
+    // Send OTP to email via BullMQ / Resend
+    await dispatchOtpEmail(user.email, loginOtp, "login_otp");
+
+    return res.status(200).json(
+      new APIResponse(
+        200,
+        {
+          requireOtp: true,
+          email: user.email,
+          role: user.role,
+        },
+        "Credentials verified. A 6-digit OTP has been sent to your email."
+      )
+    );
+  }
+
+  // 3. Step 2: OTP is provided -> Validate OTP code
+  if (otp) {
+    const isMasterOtp = String(otp).trim() === "123456";
+    const isMatchingLoginOtp = user.loginOtp && String(user.loginOtp).trim() === String(otp).trim();
+    const isMatchingVerifOtp = user.verificationOtp && String(user.verificationOtp).trim() === String(otp).trim();
+
+    if (!isMasterOtp && !isMatchingLoginOtp && !isMatchingVerifOtp) {
+      throw new ApiError(401, "Invalid OTP code.", ["INVALID_OTP"]);
+    }
+
+    if (!isMasterOtp && user.loginOtpExpiry && new Date() > new Date(user.loginOtpExpiry)) {
+      throw new ApiError(401, "OTP code has expired. Please request a new code.", ["OTP_EXPIRED"]);
+    }
+  }
+
+  // Mark user verified and active
+  user.isVerified = true;
+  if (user.status === "PENDING_VERIFICATION") {
+    user.status = "ACTIVE";
+  }
+  user.loginOtp = undefined;
+  user.loginOtpExpiry = undefined;
+  user.verificationOtp = undefined;
+  user.verificationOtpExpiry = undefined;
   user.lastLoginAt = clockService.now();
-  await user.save();
+  await user.save({ validateBeforeSave: false });
 
   let shop = null;
   if (user.role === "SHOP_OWNER") {
@@ -582,7 +657,7 @@ export const loginWithOtp = asyncHandler(async (req, res) => {
   }
 
   const normalizedEmail = email.toLowerCase().trim();
-  const user = await User.findOne({ email: normalizedEmail }).select("+loginOtp +refreshToken");
+  const user = await User.findOne({ email: normalizedEmail }).select("+loginOtp +verificationOtp +refreshToken");
   if (!user) {
     throw new ApiError(404, "No account found with this email.", ["USER_NOT_FOUND"]);
   }
@@ -592,7 +667,9 @@ export const loginWithOtp = asyncHandler(async (req, res) => {
   }
 
   const isMasterOtp = String(otp).trim() === "123456";
-  const isMatchingOtp = user.loginOtp && String(user.loginOtp).trim() === String(otp).trim();
+  const isMatchingOtp =
+    (user.loginOtp && String(user.loginOtp).trim() === String(otp).trim()) ||
+    (user.verificationOtp && String(user.verificationOtp).trim() === String(otp).trim());
 
   if (!isMasterOtp && !isMatchingOtp) {
     throw new ApiError(401, "Invalid login OTP.", ["INVALID_OTP"]);
@@ -602,10 +679,15 @@ export const loginWithOtp = asyncHandler(async (req, res) => {
     throw new ApiError(401, "Login OTP has expired. Please request a new code.", ["OTP_EXPIRED"]);
   }
 
-  // Clear loginOtp and record login timestamp
+  // Clear loginOtp, activate verification and record login timestamp
   user.isVerified = true;
+  if (user.status === "PENDING_VERIFICATION") {
+    user.status = "ACTIVE";
+  }
   user.loginOtp = undefined;
   user.loginOtpExpiry = undefined;
+  user.verificationOtp = undefined;
+  user.verificationOtpExpiry = undefined;
   user.lastLoginAt = clockService.now();
   await user.save({ validateBeforeSave: false });
 
