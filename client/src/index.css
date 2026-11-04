@@ -33,7 +33,7 @@
 
   body {
     @apply bg-background text-foreground font-sans;
-    background-color: #030307;
+    background-color: #080A0F;
     color: #F5F5F7;
     overflow-x: hidden;
     min-height: 100vh;

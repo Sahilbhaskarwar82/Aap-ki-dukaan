@@ -414,28 +414,20 @@ export function LandingPage({
       onNavigate={onNavigate}
     >
       {/* ── SECTION 1: PROMOTIONAL HERO BANNER ── */}
-      <section className="relative overflow-hidden bg-[#030307] border-b border-purple-500/15 py-12 md:py-16 xl:py-20">
-        {/* Ambient glowing radial backdrop */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/2 left-1/4 -translate-y-1/2 w-[500px] h-[500px] bg-[radial-gradient(circle,rgba(236,72,153,0.12),transparent_70%)] blur-3xl" />
-          <div className="absolute top-1/2 right-1/4 -translate-y-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle,rgba(168,85,247,0.14),transparent_70%)] blur-3xl" />
-        </div>
-
+      <section className="relative overflow-hidden bg-[#080A0F] border-b border-white/[0.08] py-12 md:py-16 xl:py-20">
         <div className="marketplace-container relative z-10 text-left">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 xl:gap-16 items-center">
             {/* Left Column (Hero Content) */}
             <div className="lg:col-span-7 xl:col-span-7 space-y-6">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-purple-950/40 border border-purple-500/30 text-xs text-purple-200 font-mono shadow-[0_0_15px_rgba(168,85,247,0.15)]">
-                <span className="h-2 w-2 rounded-full bg-pink-400 animate-pulse shadow-[0_0_8px_#F472B6]" />
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-slate-900 border border-slate-800 text-xs text-slate-300 font-mono">
+                <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
                 <span>Regional Demand Pooling &bull; Lucknow Transport Nagar Hub</span>
               </div>
 
-              <h1 className="font-display font-bold text-4xl sm:text-5xl lg:text-6xl xl:text-7xl text-white tracking-tight leading-[1.08] max-w-3xl">
-                <span className="bg-gradient-to-r from-[#FF5E98] via-[#C084FC] to-[#818CF8] bg-clip-text text-transparent block">
-                  Wholesale Prices.
-                </span>
-                <span className="text-white block mt-1 sm:mt-2">
-                  Powered by Buying Together.
+              <h1 className="font-display font-semibold text-3xl sm:text-4xl lg:text-5xl xl:text-6xl text-white tracking-tight leading-[1.1] max-w-3xl">
+                Wholesale Prices.{' '}
+                <span className="text-slate-300 block sm:inline">
+                  Powered by buying together.
                 </span>
               </h1>
 
@@ -443,42 +435,42 @@ export function LandingPage({
                 Independent retail stores, cafes, and kiranas unite regional purchasing needs. Pool your order volumes, reach wholesale manufacturer MOQs, and unlock true factory-direct pricing.
               </p>
 
-              <div className="flex flex-wrap items-center gap-4 pt-2">
+              <div className="flex flex-wrap items-center gap-3 pt-1">
                 <Button
                   variant="primary"
                   size="lg"
-                  className="rounded-full px-8 h-12 font-medium text-sm bg-gradient-to-r from-pink-500/20 to-purple-600/20 border border-pink-500/70 text-white shadow-[0_0_25px_rgba(236,72,153,0.35)] hover:shadow-[0_0_35px_rgba(236,72,153,0.55)] hover:border-pink-400 transition-all cursor-pointer"
+                  className="font-medium text-sm px-6 h-11 shadow-sm"
                   onClick={() => {
                     const groupSection = document.getElementById('trending-group-buys');
                     if (groupSection) groupSection.scrollIntoView({ behavior: 'smooth' });
                   }}
                 >
                   Explore Active Group Buys
-                  <ArrowRight className="ml-2 h-4 w-4 text-pink-300" />
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
 
                 <Button
                   variant="outline"
                   size="lg"
-                  className="rounded-full px-7 h-12 font-medium text-sm bg-white/[0.04] border border-white/20 text-white hover:border-white/40 hover:bg-white/[0.08] transition-all cursor-pointer"
+                  className="font-medium text-sm px-5 h-11 border-slate-700 bg-slate-900/60 text-slate-200 hover:bg-slate-800 hover:text-white hover:border-slate-600 transition-colors"
                   onClick={() => setHowItWorksOpen(true)}
                 >
-                  <HelpCircle className="mr-2 h-4 w-4 text-purple-300" />
+                  <HelpCircle className="mr-2 h-4 w-4 text-slate-400" />
                   How Collective Buying Works
                 </Button>
               </div>
 
-              <div className="flex flex-wrap items-center gap-y-2.5 gap-x-6 pt-5 text-xs text-slate-400 border-t border-purple-500/15 font-mono">
+              <div className="flex flex-wrap items-center gap-y-2.5 gap-x-6 pt-4 text-xs text-slate-400 border-t border-white/[0.06] font-mono">
                 <span className="flex items-center gap-1.5">
-                  <ShieldCheck className="h-4 w-4 text-pink-400 shrink-0" />
+                  <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
                   Verified Regional Wholesalers
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <CheckCircle2 className="h-4 w-4 text-purple-400 shrink-0" />
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
                   100% Refund if Pool Under-MOQ
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <Building className="h-4 w-4 text-indigo-400 shrink-0" />
+                  <Building className="h-4 w-4 text-slate-400 shrink-0" />
                   Direct Transport Hub Dispatch
                 </span>
               </div>
@@ -486,30 +478,30 @@ export function LandingPage({
 
             {/* Right Column (Hero Consignment Manifest) */}
             <div className="lg:col-span-5 xl:col-span-5">
-              <div className="rounded-2xl border border-purple-500/25 bg-[#090A14]/85 backdrop-blur-2xl p-6 sm:p-7 shadow-[0_0_40px_rgba(168,85,247,0.12)] relative overflow-hidden space-y-5">
+              <div className="rounded-2xl border border-white/[0.08] bg-[#11141C] p-6 sm:p-7 shadow-2xl relative overflow-hidden space-y-5 before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/[0.12]">
                 {/* Logistics Lot Header with Monospace Route & Barcode Motif */}
-                <div className="flex items-center justify-between border-b border-purple-500/15 pb-3">
+                <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
                   <div className="flex items-center gap-2.5">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-950/40 border border-purple-500/30 text-[11px] font-medium text-purple-300 font-mono shadow-[0_0_10px_rgba(168,85,247,0.2)]">
-                      <span className="h-1.5 w-1.5 rounded-full bg-pink-400 animate-pulse" />
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-emerald-950/60 border border-emerald-500/30 text-[11px] font-medium text-emerald-300 font-mono">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                       Live Regional Pool
                     </span>
-                    <span className="text-xs font-mono text-purple-300/70">AKD-POOL-2026-08</span>
+                    <span className="text-xs font-mono text-slate-400">AKD-POOL-2026-08</span>
                   </div>
                   <div className="text-right">
-                    <span className="text-xl font-bold font-mono bg-gradient-to-r from-pink-400 to-purple-300 bg-clip-text text-transparent tabular-nums">₹80</span>
-                    <span className="text-xs text-purple-300/70 font-mono"> / carton</span>
+                    <span className="text-lg font-bold font-mono text-white tabular-nums">₹80</span>
+                    <span className="text-xs text-slate-400 font-mono"> / carton</span>
                   </div>
                 </div>
 
                 {/* Consignment Item Information */}
                 <div className="text-left space-y-1.5">
                   <div className="flex items-center gap-2 text-xs">
-                    <span className="text-[11px] font-mono text-pink-400 uppercase tracking-wider font-semibold">
+                    <span className="text-[11px] font-mono text-emerald-400 uppercase tracking-wider font-medium">
                       Packaging
                     </span>
-                    <span className="text-purple-600">&bull;</span>
-                    <span className="text-[11px] text-purple-200/70 font-mono">
+                    <span className="text-slate-600">&bull;</span>
+                    <span className="text-[11px] text-slate-400 font-mono">
                       Standard: ₹100 (-20%)
                     </span>
                   </div>
@@ -517,26 +509,26 @@ export function LandingPage({
                     12oz Eco Kraft Paper Cups (1,000 pk)
                   </h3>
                   <p className="text-xs text-slate-400 flex items-center gap-1.5">
-                    <Building className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+                    <Building className="h-3.5 w-3.5 text-slate-500 shrink-0" />
                     Apex Packaging Ltd &bull; Lucknow Transport Nagar
                   </p>
                 </div>
 
                 {/* Wholesaler Volume Progress Tracker */}
-                <div className="space-y-2 text-left p-3.5 rounded-xl bg-[#0E1020]/70 border border-purple-500/20">
+                <div className="space-y-2 text-left p-3.5 rounded-xl bg-slate-900/60 border border-white/[0.06]">
                   <div className="flex justify-between items-baseline text-xs">
-                    <span className="text-slate-300 font-medium">Wholesaler MOQ Progress</span>
-                    <span className="text-pink-300 font-semibold font-mono tabular-nums">
+                    <span className="text-slate-400 font-medium">Wholesaler MOQ Progress</span>
+                    <span className="text-emerald-400 font-semibold font-mono tabular-nums">
                       850 / 1,000 cartons (85%)
                     </span>
                   </div>
-                  <div className="w-full h-2.5 bg-black/60 rounded-full overflow-hidden border border-purple-500/20 p-0.5">
+                  <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full transition-all duration-500 shadow-[0_0_12px_rgba(236,72,153,0.5)]"
+                      className="h-full bg-emerald-500 rounded-full transition-all duration-500"
                       style={{ width: '85%' }}
                     />
                   </div>
-                  <div className="flex justify-between text-[11px] text-purple-300/70 font-mono pt-0.5">
+                  <div className="flex justify-between text-[11px] text-slate-500 font-mono pt-0.5">
                     <span>Retailer MOQ: 20 cartons</span>
                     <span>150 cartons to lock</span>
                   </div>
@@ -544,35 +536,35 @@ export function LandingPage({
 
                 {/* Participating Retailer Allotment Ledger */}
                 <div className="space-y-2 text-left">
-                  <span className="text-[11px] font-medium text-purple-300/70 uppercase tracking-wider block font-mono">
+                  <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider block font-mono">
                     Recent Buyer Contributions
                   </span>
                   <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
-                    <div className="p-2.5 rounded-xl bg-[#0E1020]/60 border border-purple-500/15 text-center">
+                    <div className="p-2.5 rounded-lg bg-slate-900/40 border border-white/[0.06] text-center">
                       <p className="text-xs font-medium text-white">Shop A</p>
-                      <p className="text-[11px] font-mono text-pink-400 font-semibold tabular-nums">20 cartons</p>
+                      <p className="text-[11px] font-mono text-emerald-400 tabular-nums">20 cartons</p>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-[#0E1020]/60 border border-purple-500/15 text-center">
+                    <div className="p-2.5 rounded-lg bg-slate-900/40 border border-white/[0.06] text-center">
                       <p className="text-xs font-medium text-white">Shop B</p>
-                      <p className="text-[11px] font-mono text-pink-400 font-semibold tabular-nums">15 cartons</p>
+                      <p className="text-[11px] font-mono text-emerald-400 tabular-nums">15 cartons</p>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-[#0E1020]/60 border border-purple-500/15 text-center">
+                    <div className="p-2.5 rounded-lg bg-slate-900/40 border border-white/[0.06] text-center">
                       <p className="text-xs font-medium text-white">Shop C</p>
-                      <p className="text-[11px] font-mono text-pink-400 font-semibold tabular-nums">25 cartons</p>
+                      <p className="text-[11px] font-mono text-emerald-400 tabular-nums">25 cartons</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Ticket Action Footer */}
-                <div className="flex items-center justify-between pt-3 border-t border-purple-500/15">
-                  <div className="flex items-center gap-1.5 text-xs text-purple-300 font-medium font-mono">
-                    <Clock className="h-3.5 w-3.5 text-pink-400" />
+                <div className="flex items-center justify-between pt-3 border-t border-white/[0.08]">
+                  <div className="flex items-center gap-1.5 text-xs text-amber-400 font-medium font-mono">
+                    <Clock className="h-3.5 w-3.5" />
                     <span>14h 53m remaining</span>
                   </div>
                   <Button
                     variant="primary"
                     size="sm"
-                    className="rounded-full font-medium text-xs px-5 h-9 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white shadow-[0_0_20px_rgba(236,72,153,0.4)] transition-all cursor-pointer"
+                    className="font-medium text-xs px-4 h-9 shadow-sm"
                     onClick={() => handleOpenJoinModal(pools[0])}
                   >
                     Join This Pool
@@ -585,7 +577,7 @@ export function LandingPage({
       </section>
 
       {/* ── SECTION 2: SHOP BY CATEGORY ── */}
-      <section className="py-12 border-b border-purple-500/15 bg-[#030307]">
+      <section className="py-12 border-b border-white/[0.08] bg-[#080A0F]">
         <div className="marketplace-container text-left space-y-6">
           <div className="flex items-center justify-between">
             <div>
@@ -598,7 +590,7 @@ export function LandingPage({
             </div>
             <button
               onClick={() => setSelectedCategory('all')}
-              className="text-xs font-medium text-purple-300 hover:text-white transition-colors cursor-pointer"
+              className="text-xs font-medium text-slate-300 hover:text-white transition-colors cursor-pointer"
             >
               View All Categories &rarr;
             </button>
@@ -649,19 +641,19 @@ export function LandingPage({
                 <div
                   key={cat.id}
                   onClick={() => setSelectedCategory(cat.id)}
-                  className={`p-4 rounded-2xl border transition-all duration-300 cursor-pointer group ${
+                  className={`p-4 rounded-xl border transition-colors cursor-pointer group ${
                     isSelected
-                      ? 'border-pink-500/50 bg-[#141528] text-white shadow-[0_0_20px_rgba(236,72,153,0.25)]'
-                      : 'border-purple-500/15 bg-[#090A14]/70 hover:border-pink-500/40 hover:bg-[#0F1122]/80 hover:shadow-[0_0_20px_rgba(236,72,153,0.12)]'
+                      ? 'border-white/[0.24] bg-slate-800 text-white'
+                      : 'border-white/[0.08] bg-[#11141C] hover:border-white/[0.16] hover:bg-[#161B26]'
                   }`}
                 >
-                  <div className="h-9 w-9 rounded-xl bg-purple-950/40 border border-purple-500/30 flex items-center justify-center text-purple-300 group-hover:text-pink-300 group-hover:border-pink-500/40 transition-colors mb-2.5">
+                  <div className="h-8 w-8 rounded-lg bg-slate-800/80 border border-slate-700/60 flex items-center justify-center text-slate-300 group-hover:text-white transition-colors mb-2.5">
                     <IconComp className="h-4 w-4" />
                   </div>
-                  <h4 className="font-semibold text-sm text-white group-hover:text-pink-300 transition-colors">
+                  <h4 className="font-semibold text-sm text-white group-hover:text-red-400 transition-colors">
                     {cat.title}
                   </h4>
-                  <p className="text-xs text-purple-300/70 mt-1 font-mono">{cat.count}</p>
+                  <p className="text-xs text-slate-400 mt-1 font-mono">{cat.count}</p>
                 </div>
               );
             })}
@@ -670,12 +662,12 @@ export function LandingPage({
       </section>
 
       {/* ── SECTION 3: TRENDING GROUP BUYS (THE CORE DIFFERENTIATOR) ── */}
-      <section id="trending-group-buys" className="py-14 border-b border-purple-500/15 bg-[#030307]">
+      <section id="trending-group-buys" className="py-14 border-b border-white/[0.08] bg-[#080A0F]">
         <div className="marketplace-container space-y-8 text-left">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
-                <Flame className="h-5 w-5 text-pink-500" />
+                <Flame className="h-5 w-5 text-red-500" />
                 <h2 className="font-display font-semibold text-2xl text-white">
                   Trending Group Buys &bull; Collective Orders Closing Soon
                 </h2>
@@ -685,11 +677,11 @@ export function LandingPage({
               </p>
             </div>
             <div className="flex items-center gap-2 font-mono">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-950/30 border border-purple-500/30 text-xs font-medium text-purple-300">
-                <ShieldCheck className="h-3.5 w-3.5 text-pink-400" />
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-slate-900 border border-slate-800 text-xs font-medium text-slate-300">
+                <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
                 Verified Wholesalers
               </span>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-950/30 border border-purple-500/30 text-xs font-medium text-slate-300">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-slate-900 border border-slate-800 text-xs font-medium text-slate-300">
                 INR Minor Unit Billing
               </span>
             </div>
@@ -706,31 +698,31 @@ export function LandingPage({
               return (
                 <div
                   key={pool.id}
-                  className="group rounded-2xl border border-purple-500/20 bg-[#090A14]/85 backdrop-blur-xl overflow-hidden hover:border-pink-500/40 hover:shadow-[0_0_35px_rgba(236,72,153,0.18)] transition-all duration-300 flex flex-col justify-between"
+                  className="group rounded-xl border border-white/[0.08] bg-[#11141C] overflow-hidden hover:border-white/[0.16] hover:bg-[#161B26] transition-colors flex flex-col justify-between"
                 >
                   <div>
                     {/* Image Header with Countdown & Badges */}
-                    <div className="relative h-48 sm:h-52 w-full bg-black overflow-hidden">
+                    <div className="relative h-48 sm:h-52 w-full bg-slate-950 overflow-hidden">
                       <img
                         src={pool.image}
                         alt={pool.title}
-                        className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-80"
+                        className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-85"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#090A14] via-transparent to-black/40" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#11141C] via-transparent to-black/30" />
 
                       {/* Top Badges */}
                       <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 font-mono">
-                        <span className="px-2.5 py-0.5 rounded-full bg-pink-950/80 border border-pink-500/50 text-[11px] font-semibold text-pink-300 shadow-[0_0_10px_rgba(236,72,153,0.3)]">
+                        <span className="px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-500/30 text-[11px] font-semibold text-emerald-300">
                           Save {savingsPercent}%
                         </span>
-                        <span className="px-2.5 py-0.5 rounded-full bg-black/70 border border-purple-500/30 text-[10px] text-purple-200 font-medium">
+                        <span className="px-2 py-0.5 rounded bg-slate-900/80 border border-slate-700/60 text-[10px] text-slate-300 font-medium">
                           Min: {pool.moqR} {pool.unit}
                         </span>
                       </div>
 
                       <div className="absolute top-2.5 right-2.5">
-                        <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-black/70 backdrop-blur-md border border-purple-500/30 text-[11px] text-purple-200 font-medium font-mono">
-                          <Clock className="h-3 w-3 text-pink-400" />
+                        <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-black/80 backdrop-blur-md border border-amber-500/30 text-[11px] text-amber-300 font-medium font-mono">
+                          <Clock className="h-3 w-3" />
                           <span>
                             {pool.hoursRemaining}h {pool.minutesRemaining}m
                           </span>
@@ -740,7 +732,7 @@ export function LandingPage({
                       {/* Bottom Supplier Overlay */}
                       <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between text-xs text-slate-300">
                         <span className="truncate font-medium">{pool.supplier}</span>
-                        <div className="flex items-center gap-1 text-pink-400 shrink-0 font-medium font-mono">
+                        <div className="flex items-center gap-1 text-amber-400 shrink-0 font-medium font-mono">
                           <Star className="h-3 w-3 fill-current" />
                           <span>{pool.supplierRating}</span>
                         </div>
@@ -758,11 +750,11 @@ export function LandingPage({
                         <span className="text-xl font-bold font-mono text-white tabular-nums">
                           ₹{pool.currentTierPrice}
                         </span>
-                        <span className="text-xs text-purple-300/70 font-mono">/{pool.unit}</span>
+                        <span className="text-xs text-slate-400 font-mono">/{pool.unit}</span>
                         <span className="text-xs text-slate-500 line-through font-mono">
                           ₹{pool.standardPrice}
                         </span>
-                        <span className="text-xs text-pink-400 font-semibold font-mono ml-auto">
+                        <span className="text-xs text-emerald-400 font-semibold font-mono ml-auto">
                           Bulk Tier Unlocked
                         </span>
                       </div>
@@ -771,20 +763,20 @@ export function LandingPage({
                       <div className="space-y-1">
                         <div className="flex justify-between text-xs font-medium">
                           <span className="text-slate-400">Pool Progress</span>
-                          <span className="text-pink-300 font-mono tabular-nums">
+                          <span className="text-emerald-400 font-mono tabular-nums">
                             {pool.pooledQuantity} / {pool.targetQuantity} {pool.unit} ({percentReached}%)
                           </span>
                         </div>
-                        <div className="w-full h-2 rounded-full bg-black/70 overflow-hidden border border-purple-500/20">
+                        <div className="w-full h-2 rounded-full bg-slate-950 overflow-hidden border border-white/[0.06]">
                           <div
-                            className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 shadow-[0_0_10px_rgba(236,72,153,0.4)] transition-all duration-300"
+                            className="h-full bg-emerald-500 transition-all duration-300"
                             style={{ width: `${percentReached}%` }}
                           />
                         </div>
                       </div>
 
                       {/* Specifications Summary */}
-                      <div className="text-[11px] text-slate-400 pt-1 border-t border-purple-500/15 flex items-center justify-between font-mono">
+                      <div className="text-[11px] text-slate-400 pt-1 border-t border-white/[0.06] flex items-center justify-between font-mono">
                         <span>Wholesaler MOQ: {pool.moqW} {pool.unit}</span>
                         <span>Step: +{pool.step} {pool.unit}</span>
                       </div>
@@ -795,7 +787,7 @@ export function LandingPage({
                   <div className="p-4 pt-0">
                     <Button
                       variant="primary"
-                      className="w-full rounded-full font-medium text-xs h-9 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white shadow-[0_0_20px_rgba(236,72,153,0.35)] hover:shadow-[0_0_30px_rgba(236,72,153,0.55)] transition-all cursor-pointer"
+                      className="w-full font-medium text-xs h-9 shadow-sm"
                       onClick={() => handleOpenJoinModal(pool)}
                     >
                       Join Group Buy Pool
@@ -809,7 +801,7 @@ export function LandingPage({
       </section>
 
       {/* ── SECTION 4: DIRECT WHOLESALER CATALOG (INSTANT PROCUREMENT) ── */}
-      <section className="py-14 border-b border-purple-500/15 bg-[#030307]">
+      <section className="py-14 border-b border-white/[0.08] bg-[#080A0F]">
         <div className="marketplace-container space-y-6 text-left">
           <div className="flex items-center justify-between">
             <div>
@@ -828,7 +820,7 @@ export function LandingPage({
                   window.location.href = '/suppliers';
                 }
               }}
-              className="text-xs font-medium text-purple-300 hover:text-white transition-colors cursor-pointer"
+              className="text-xs font-medium text-slate-300 hover:text-white transition-colors cursor-pointer"
             >
               Browse Complete Catalog &rarr;
             </button>
@@ -838,12 +830,12 @@ export function LandingPage({
             {catalogProducts.map((prod) => (
               <div
                 key={prod.id}
-                className="p-5 rounded-2xl border border-purple-500/15 bg-[#090A14]/75 backdrop-blur-md hover:border-purple-500/35 hover:shadow-[0_0_20px_rgba(168,85,247,0.12)] transition-all duration-300 space-y-3 flex flex-col justify-between"
+                className="p-5 rounded-xl border border-white/[0.08] bg-[#11141C] hover:border-white/[0.16] hover:bg-[#161B26] transition-colors space-y-3 flex flex-col justify-between"
               >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
                     <span className="truncate max-w-[150px]">{prod.supplier}</span>
-                    <span className="flex items-center gap-0.5 text-pink-400 font-medium">
+                    <span className="flex items-center gap-0.5 text-amber-400 font-medium">
                       <Star className="h-3 w-3 fill-current" /> {prod.rating}
                     </span>
                   </div>
@@ -854,18 +846,18 @@ export function LandingPage({
                     <span className="text-lg font-bold text-white tabular-nums">
                       ₹{prod.unitPrice}
                     </span>
-                    <span className="text-xs text-purple-300/70">/{prod.unit}</span>
+                    <span className="text-xs text-slate-400">/{prod.unit}</span>
                   </div>
                   <p className="text-[11px] text-slate-400 font-mono">
                     Solo Direct MOQ: <strong className="text-slate-200">{prod.directMoq} {prod.unit}</strong>
                   </p>
                 </div>
 
-                <div className="pt-2.5 space-y-2 border-t border-purple-500/15">
+                <div className="pt-2.5 space-y-2 border-t border-white/[0.06]">
                   <Button
                     variant="secondary"
                     size="sm"
-                    className="w-full rounded-full text-xs h-8 bg-purple-500/15 hover:bg-purple-500/30 text-purple-200 border border-purple-500/30 transition-colors"
+                    className="w-full text-xs h-8 bg-slate-800 hover:bg-slate-700 text-slate-100 border border-white/[0.08]"
                     onClick={() => toast.info(`Direct order request recorded for ${prod.title}`)}
                   >
                     Direct Wholesale Order
@@ -873,7 +865,7 @@ export function LandingPage({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-full rounded-full text-xs h-8 text-slate-300 border border-white/15 bg-white/[0.03] hover:border-purple-500/40 hover:text-white transition-colors"
+                    className="w-full text-xs h-8 text-slate-300 border-slate-700 hover:border-slate-500 hover:bg-slate-800"
                     onClick={() => {
                       toast.success(`Pool creation request generated for ${prod.title}!`);
                       setHowItWorksOpen(true);
@@ -889,11 +881,11 @@ export function LandingPage({
       </section>
 
       {/* ── SECTION 5: VERIFIED WHOLESALE SUPPLIERS ── */}
-      <section className="py-14 border-b border-purple-500/15 bg-[#030307]">
+      <section className="py-14 border-b border-white/[0.08] bg-[#080A0F]">
         <div className="marketplace-container space-y-6 text-left">
           <div>
             <h2 className="font-display font-semibold text-xl text-white">
-              Verified Regional Wholesalers &amp; Distributors
+              Verified Regional Wholesalers & Distributors
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
               Direct-contract manufacturers and verified distributors with audited stock availability and certified fulfillment tracking
@@ -904,11 +896,11 @@ export function LandingPage({
             {verifiedSuppliers.map((sup) => (
               <div
                 key={sup.id}
-                className="p-5 sm:p-6 rounded-2xl border border-purple-500/15 bg-[#090A14]/75 backdrop-blur-md hover:border-purple-500/35 hover:shadow-[0_0_20px_rgba(168,85,247,0.12)] transition-all duration-300 space-y-4"
+                className="p-5 sm:p-6 rounded-xl border border-white/[0.08] bg-[#11141C] hover:border-white/[0.16] hover:bg-[#161B26] transition-colors space-y-4"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-purple-950/40 border border-purple-500/30 flex items-center justify-center text-sm font-bold text-white shrink-0 font-mono shadow-[0_0_10px_rgba(168,85,247,0.2)]">
+                    <div className="h-10 w-10 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-sm font-bold text-white shrink-0 font-mono">
                       {sup.name.slice(0, 2).toUpperCase()}
                     </div>
                     <div className="space-y-0.5">
@@ -916,27 +908,27 @@ export function LandingPage({
                         {sup.name}
                       </h3>
                       <p className="text-xs text-slate-400 flex items-center gap-1">
-                        <MapPin className="h-3 w-3 text-pink-400 shrink-0" />
+                        <MapPin className="h-3 w-3 text-red-400 shrink-0" />
                         {sup.hub}
                       </p>
                     </div>
                   </div>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-purple-950/40 border border-purple-500/30 text-[11px] font-medium text-purple-300 font-mono shadow-[0_0_10px_rgba(168,85,247,0.2)]">
-                    <ShieldCheck className="h-3 w-3 text-pink-400" />
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-emerald-950/60 border border-emerald-500/30 text-[11px] font-medium text-emerald-300 font-mono">
+                    <ShieldCheck className="h-3 w-3" />
                     Verified
                   </span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-xs pt-1 font-mono">
-                  <div className="p-2.5 rounded-xl bg-[#0E1020]/70 border border-purple-500/15">
+                  <div className="p-2.5 rounded-lg bg-slate-900/60 border border-white/[0.06]">
                     <span className="text-[10px] text-slate-400 block">Rating</span>
-                    <span className="font-bold text-pink-400 flex items-center gap-1 mt-0.5 tabular-nums">
+                    <span className="font-bold text-amber-400 flex items-center gap-1 mt-0.5 tabular-nums">
                       <Star className="h-3 w-3 fill-current" /> {sup.rating} / 5.0
                     </span>
                   </div>
-                  <div className="p-2.5 rounded-xl bg-[#0E1020]/70 border border-purple-500/15">
+                  <div className="p-2.5 rounded-lg bg-slate-900/60 border border-white/[0.06]">
                     <span className="text-[10px] text-slate-400 block">Fulfillment</span>
-                    <span className="font-bold text-purple-300 mt-0.5 block tabular-nums">{sup.fulfillmentRate}</span>
+                    <span className="font-bold text-emerald-400 mt-0.5 block tabular-nums">{sup.fulfillmentRate}</span>
                   </div>
                 </div>
 
@@ -946,7 +938,7 @@ export function LandingPage({
                     {sup.categories.map((c) => (
                       <span
                         key={c}
-                        className="px-2.5 py-0.5 rounded-full bg-purple-950/40 text-[11px] text-purple-200 border border-purple-500/20 font-mono"
+                        className="px-2.5 py-0.5 rounded-full bg-slate-800 text-[11px] text-slate-300 border border-slate-700/60 font-mono"
                       >
                         {c}
                       </span>
@@ -957,7 +949,7 @@ export function LandingPage({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="w-full rounded-full text-xs h-9 border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-200 transition-colors"
+                  className="w-full text-xs h-9 border-slate-700 hover:border-slate-500 hover:bg-slate-800 text-slate-200"
                   onClick={() => toast.info(`Viewing all active pools for ${sup.name}`)}
                 >
                   View {sup.activePoolsCount} Active Pools
@@ -969,9 +961,9 @@ export function LandingPage({
       </section>
 
       {/* ── SECTION 6: HOW COLLECTIVE BUYING WORKS BANNER / TEASER ── */}
-      <section className="py-14 bg-[#05060C] border-b border-purple-500/15">
+      <section className="py-14 bg-[#0B0D14] border-b border-white/[0.08]">
         <div className="marketplace-container text-center space-y-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-950/40 border border-purple-500/30 text-xs font-medium text-purple-300 font-mono shadow-[0_0_10px_rgba(168,85,247,0.2)]">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-slate-900 border border-slate-800 text-xs font-medium text-slate-300 font-mono">
             <span>Procurement Architecture</span>
           </div>
 
@@ -983,8 +975,8 @@ export function LandingPage({
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 xl:gap-6 text-left w-full max-w-5xl mx-auto pt-3">
-            <div className="p-6 rounded-2xl border border-purple-500/15 bg-[#090A14]/75 space-y-3">
-              <span className="inline-block text-xs font-mono font-bold text-pink-400 px-2.5 py-0.5 rounded-full bg-pink-950/40 border border-pink-500/30 shadow-[0_0_10px_rgba(236,72,153,0.2)]">
+            <div className="p-6 rounded-xl border border-white/[0.08] bg-[#11141C] space-y-3">
+              <span className="inline-block text-xs font-mono font-bold text-red-400 px-2 py-0.5 rounded bg-red-950/40 border border-red-500/20">
                 01
               </span>
               <h4 className="font-semibold text-sm text-white">Pool Regional Demand</h4>
@@ -993,8 +985,8 @@ export function LandingPage({
               </p>
             </div>
 
-            <div className="p-6 rounded-2xl border border-purple-500/15 bg-[#090A14]/75 space-y-3">
-              <span className="inline-block text-xs font-mono font-bold text-purple-300 px-2.5 py-0.5 rounded-full bg-purple-950/40 border border-purple-500/30 shadow-[0_0_10px_rgba(168,85,247,0.2)]">
+            <div className="p-6 rounded-xl border border-white/[0.08] bg-[#11141C] space-y-3">
+              <span className="inline-block text-xs font-mono font-bold text-emerald-400 px-2 py-0.5 rounded bg-emerald-950/40 border border-emerald-500/20">
                 02
               </span>
               <h4 className="font-semibold text-sm text-white">Hit Factory MOQ</h4>
@@ -1003,8 +995,8 @@ export function LandingPage({
               </p>
             </div>
 
-            <div className="p-6 rounded-2xl border border-purple-500/15 bg-[#090A14]/75 space-y-3">
-              <span className="inline-block text-xs font-mono font-bold text-indigo-300 px-2.5 py-0.5 rounded-full bg-indigo-950/40 border border-indigo-500/30 shadow-[0_0_10px_rgba(99,102,241,0.2)]">
+            <div className="p-6 rounded-xl border border-white/[0.08] bg-[#11141C] space-y-3">
+              <span className="inline-block text-xs font-mono font-bold text-amber-400 px-2 py-0.5 rounded bg-amber-950/40 border border-amber-500/20">
                 03
               </span>
               <h4 className="font-semibold text-sm text-white">Unlock Tiered Savings</h4>
@@ -1018,7 +1010,7 @@ export function LandingPage({
             <Button
               variant="outline"
               size="lg"
-              className="rounded-full px-7 h-12 font-medium text-xs sm:text-sm bg-white/[0.04] border border-white/20 text-white hover:border-purple-500/40 hover:bg-purple-500/10 transition-all cursor-pointer"
+              className="font-medium text-xs sm:text-sm h-11 border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white hover:border-slate-600 transition-colors"
               onClick={() => setHowItWorksOpen(true)}
             >
               Open Pricing Calculator &amp; How It Works &rarr;
@@ -1029,57 +1021,57 @@ export function LandingPage({
 
       {/* ── MODAL: INTERACTIVE HOW IT WORKS EXPERIENCE ── */}
       <Dialog open={howItWorksOpen} onOpenChange={setHowItWorksOpen}>
-        <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto bg-[#090A14] border border-purple-500/30 text-white shadow-[0_0_50px_rgba(168,85,247,0.15)]">
+        <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto">
           <DialogHeader>
-            <div className="flex items-center gap-2.5">
-              <div className="h-7 w-7 rounded-full bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold shadow-[0_0_10px_rgba(236,72,153,0.4)]">
+            <div className="flex items-center gap-2">
+              <div className="h-6 w-6 rounded-md bg-midnight-red flex items-center justify-center text-white text-xs font-bold">
                 आ
               </div>
-              <DialogTitle className="text-xl font-display font-semibold text-white">
+              <DialogTitle className="text-xl">
                 CoBuy AI Engine: Collective Buying Architecture
               </DialogTitle>
             </div>
-            <DialogDescription className="text-slate-400 text-xs">
+            <DialogDescription>
               Detailed breakdown of AI invoice parsing, two-level MOQ math, the ₹4,800 group pricing rule, and 72-hour governance.
             </DialogDescription>
           </DialogHeader>
 
           {/* Modal Tabs */}
           <Tabs defaultValue="calculator" className="w-full mt-4">
-            <TabsList className="grid grid-cols-4 w-full h-11 bg-[#0E1020] border border-purple-500/20 rounded-full p-1">
-              <TabsTrigger value="calculator" className="text-xs rounded-full data-[state=active]:bg-gradient-to-r data-[state=active]:from-pink-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-[0_0_15px_rgba(236,72,153,0.35)]">
+            <TabsList className="grid grid-cols-4 w-full h-11">
+              <TabsTrigger value="calculator" className="text-xs">
                 ₹4,800 Pricing Model
               </TabsTrigger>
-              <TabsTrigger value="moq-engine" className="text-xs rounded-full data-[state=active]:bg-gradient-to-r data-[state=active]:from-pink-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-[0_0_15px_rgba(236,72,153,0.35)]">
+              <TabsTrigger value="moq-engine" className="text-xs">
                 Two-Level MOQ Engine
               </TabsTrigger>
-              <TabsTrigger value="ai-extraction" className="text-xs rounded-full data-[state=active]:bg-gradient-to-r data-[state=active]:from-pink-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-[0_0_15px_rgba(236,72,153,0.35)]">
+              <TabsTrigger value="ai-extraction" className="text-xs">
                 AI Extraction Demo
               </TabsTrigger>
-              <TabsTrigger value="timeline" className="text-xs rounded-full data-[state=active]:bg-gradient-to-r data-[state=active]:from-pink-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-[0_0_15px_rgba(236,72,153,0.35)]">
+              <TabsTrigger value="timeline" className="text-xs">
                 72h Pool Timeline
               </TabsTrigger>
             </TabsList>
 
             {/* TAB 1: INTERACTIVE ₹4,800 PRICING CALCULATOR */}
             <TabsContent value="calculator" className="space-y-5 pt-3 text-left">
-              <div className="p-3.5 rounded-xl bg-[#0E1020]/80 border border-purple-500/20 text-xs text-slate-300">
-                <strong className="text-pink-300">Transparent Group Pricing Rule:</strong> Base Price = ₹100/box. Below 30 boxes = ₹100/box. 30–49 boxes = ₹90/box. 50+ boxes = ₹80/box. Adjust the shop contributions below to verify dynamic rate selection:
+              <div className="p-3 rounded-lg bg-midnight-surface/60 border border-midnight-border text-xs text-slate-300">
+                <strong>Transparent Group Pricing Rule:</strong> Base Price = ₹100/box. Below 30 boxes = ₹100/box. 30–49 boxes = ₹90/box. 50+ boxes = ₹80/box. Adjust the shop contributions below to verify dynamic rate selection:
               </div>
 
               {/* Steppers */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {/* Shop A */}
-                <div className="p-4 rounded-2xl border border-purple-500/20 bg-[#0E1020]/70 space-y-2">
+                <div className="p-4 rounded-xl border border-midnight-border bg-midnight-surface/40 space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="font-semibold text-white text-sm">Shop A</span>
-                    <Badge variant="neutral" className="rounded-full bg-purple-950/50 border border-purple-500/30 text-purple-300 text-[10px]">Retailer A</Badge>
+                    <Badge variant="neutral">Retailer A</Badge>
                   </div>
                   <div className="flex items-center justify-between gap-2 pt-1">
                     <Button
                       variant="secondary"
                       size="icon"
-                      className="h-8 w-8 rounded-full border border-purple-500/30 bg-purple-950/30 text-purple-200 hover:bg-purple-900/50"
+                      className="h-8 w-8"
                       onClick={() => setCalcShopA(Math.max(0, calcShopA - 5))}
                     >
                       <Minus className="h-3.5 w-3.5" />
@@ -1090,29 +1082,29 @@ export function LandingPage({
                     <Button
                       variant="secondary"
                       size="icon"
-                      className="h-8 w-8 rounded-full border border-purple-500/30 bg-purple-950/30 text-purple-200 hover:bg-purple-900/50"
+                      className="h-8 w-8"
                       onClick={() => setCalcShopA(calcShopA + 5)}
                     >
                       <Plus className="h-3.5 w-3.5" />
                     </Button>
                   </div>
-                  <div className="text-xs text-pink-400 font-semibold pt-1 border-t border-purple-500/15 flex justify-between font-mono">
+                  <div className="text-xs text-midnight-emerald font-semibold pt-1 border-t border-midnight-border/50 flex justify-between">
                     <span>Individual Share:</span>
                     <span>₹{shopAShare.toLocaleString('en-IN')}</span>
                   </div>
                 </div>
 
                 {/* Shop B */}
-                <div className="p-4 rounded-2xl border border-purple-500/20 bg-[#0E1020]/70 space-y-2">
+                <div className="p-4 rounded-xl border border-midnight-border bg-midnight-surface/40 space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="font-semibold text-white text-sm">Shop B</span>
-                    <Badge variant="neutral" className="rounded-full bg-purple-950/50 border border-purple-500/30 text-purple-300 text-[10px]">Retailer B</Badge>
+                    <Badge variant="neutral">Retailer B</Badge>
                   </div>
                   <div className="flex items-center justify-between gap-2 pt-1">
                     <Button
                       variant="secondary"
                       size="icon"
-                      className="h-8 w-8 rounded-full border border-purple-500/30 bg-purple-950/30 text-purple-200 hover:bg-purple-900/50"
+                      className="h-8 w-8"
                       onClick={() => setCalcShopB(Math.max(0, calcShopB - 5))}
                     >
                       <Minus className="h-3.5 w-3.5" />
@@ -1123,29 +1115,29 @@ export function LandingPage({
                     <Button
                       variant="secondary"
                       size="icon"
-                      className="h-8 w-8 rounded-full border border-purple-500/30 bg-purple-950/30 text-purple-200 hover:bg-purple-900/50"
+                      className="h-8 w-8"
                       onClick={() => setCalcShopB(calcShopB + 5)}
                     >
                       <Plus className="h-3.5 w-3.5" />
                     </Button>
                   </div>
-                  <div className="text-xs text-pink-400 font-semibold pt-1 border-t border-purple-500/15 flex justify-between font-mono">
+                  <div className="text-xs text-midnight-emerald font-semibold pt-1 border-t border-midnight-border/50 flex justify-between">
                     <span>Individual Share:</span>
                     <span>₹{shopBShare.toLocaleString('en-IN')}</span>
                   </div>
                 </div>
 
                 {/* Shop C */}
-                <div className="p-4 rounded-2xl border border-purple-500/20 bg-[#0E1020]/70 space-y-2">
+                <div className="p-4 rounded-xl border border-midnight-border bg-midnight-surface/40 space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="font-semibold text-white text-sm">Shop C</span>
-                    <Badge variant="neutral" className="rounded-full bg-purple-950/50 border border-purple-500/30 text-purple-300 text-[10px]">Retailer C</Badge>
+                    <Badge variant="neutral">Retailer C</Badge>
                   </div>
                   <div className="flex items-center justify-between gap-2 pt-1">
                     <Button
                       variant="secondary"
                       size="icon"
-                      className="h-8 w-8 rounded-full border border-purple-500/30 bg-purple-950/30 text-purple-200 hover:bg-purple-900/50"
+                      className="h-8 w-8"
                       onClick={() => setCalcShopC(Math.max(0, calcShopC - 5))}
                     >
                       <Minus className="h-3.5 w-3.5" />
@@ -1156,13 +1148,13 @@ export function LandingPage({
                     <Button
                       variant="secondary"
                       size="icon"
-                      className="h-8 w-8 rounded-full border border-purple-500/30 bg-purple-950/30 text-purple-200 hover:bg-purple-900/50"
+                      className="h-8 w-8"
                       onClick={() => setCalcShopC(calcShopC + 5)}
                     >
                       <Plus className="h-3.5 w-3.5" />
                     </Button>
                   </div>
-                  <div className="text-xs text-pink-400 font-semibold pt-1 border-t border-purple-500/15 flex justify-between font-mono">
+                  <div className="text-xs text-midnight-emerald font-semibold pt-1 border-t border-midnight-border/50 flex justify-between">
                     <span>Individual Share:</span>
                     <span>₹{shopCShare.toLocaleString('en-IN')}</span>
                   </div>
@@ -1170,31 +1162,31 @@ export function LandingPage({
               </div>
 
               {/* Output Result Card */}
-              <div className="p-4 rounded-2xl border border-purple-500/30 bg-purple-950/20 space-y-3 shadow-[0_0_20px_rgba(168,85,247,0.1)]">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-purple-500/20 pb-3">
+              <div className="p-4 rounded-xl border border-emerald-500/40 bg-emerald-950/20 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-emerald-500/30 pb-3">
                   <div>
-                    <span className="text-xs text-slate-400 block font-mono">Total Pooled Volume:</span>
-                    <span className="text-xl font-bold text-white tabular-nums font-mono">
+                    <span className="text-xs text-slate-400 block">Total Pooled Volume:</span>
+                    <span className="text-xl font-bold text-white tabular-nums">
                       {totalCalcQuantity} Boxes
                     </span>
                   </div>
                   <div>
-                    <span className="text-xs text-slate-400 block font-mono">Applicable Discount Tier:</span>
-                    <span className="text-sm font-semibold text-pink-300">
+                    <span className="text-xs text-slate-400 block">Applicable Discount Tier:</span>
+                    <span className="text-sm font-semibold text-emerald-400">
                       {calcTierName}
                     </span>
                   </div>
                   <div>
-                    <span className="text-xs text-slate-400 block font-mono">Group Merchandise Total:</span>
-                    <span className="text-2xl font-display font-bold text-white tabular-nums font-mono bg-gradient-to-r from-pink-400 to-purple-300 bg-clip-text text-transparent">
+                    <span className="text-xs text-slate-400 block">Group Merchandise Total:</span>
+                    <span className="text-2xl font-display font-bold text-midnight-gold tabular-nums">
                       ₹{totalMerchandise.toLocaleString('en-IN')}
                     </span>
                   </div>
                 </div>
 
-                <div className="text-[11px] text-slate-400 flex items-center justify-between font-mono">
+                <div className="text-[11px] text-slate-400 flex items-center justify-between">
                   <span>Standard Cost without Group Buy: ₹{(totalCalcQuantity * 100).toLocaleString('en-IN')}</span>
-                  <span className="text-pink-400 font-semibold">
+                  <span className="text-emerald-400 font-semibold">
                     Net Group Savings: ₹{((totalCalcQuantity * 100) - totalMerchandise).toLocaleString('en-IN')}
                   </span>
                 </div>
@@ -1211,38 +1203,38 @@ export function LandingPage({
                 <h4 className="font-semibold text-sm text-white">
                   Mathematical Rules: Two-Level MOQ Engine
                 </h4>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-midnight-muted">
                   Protects wholesalers from unviable order sizes while ensuring individual small retailers never need to buy full factory minimums.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 rounded-2xl border border-purple-500/20 bg-[#0E1020]/70 space-y-1">
-                  <span className="text-xs text-slate-400 font-mono">Wholesaler Factory MOQ ($MOQ_W$)</span>
-                  <p className="text-xl font-bold text-white tabular-nums font-mono">1,000 units</p>
-                  <p className="text-[11px] text-slate-400">
+                <div className="p-3.5 rounded-lg border border-midnight-border bg-midnight-surface/50 space-y-1">
+                  <span className="text-xs text-slate-400">Wholesaler Factory MOQ ($MOQ_W$)</span>
+                  <p className="text-xl font-bold text-white tabular-nums">1,000 units</p>
+                  <p className="text-[11px] text-midnight-muted">
                     Total bulk threshold the group pool must reach collectively.
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl border border-purple-500/20 bg-[#0E1020]/70 space-y-1">
-                  <span className="text-xs text-slate-400 font-mono">Retailer Minimum ($MOQ_R$)</span>
-                  <p className="text-xl font-bold text-pink-400 tabular-nums font-mono">200 units (20%)</p>
-                  <p className="text-[11px] text-slate-400">
+                <div className="p-3.5 rounded-lg border border-midnight-border bg-midnight-surface/50 space-y-1">
+                  <span className="text-xs text-slate-400">Retailer Minimum ($MOQ_R$)</span>
+                  <p className="text-xl font-bold text-midnight-emerald tabular-nums">200 units (20%)</p>
+                  <p className="text-[11px] text-midnight-muted">
                     MOQ_R = max(1, ceil(MOQ_W × 20 / 100))
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl border border-purple-500/20 bg-[#0E1020]/70 space-y-1">
-                  <span className="text-xs text-slate-400 font-mono">Order Increment Step</span>
-                  <p className="text-xl font-bold text-purple-300 tabular-nums font-mono">10 units (1%)</p>
-                  <p className="text-[11px] text-slate-400">
+                <div className="p-3.5 rounded-lg border border-midnight-border bg-midnight-surface/50 space-y-1">
+                  <span className="text-xs text-slate-400">Order Increment Step</span>
+                  <p className="text-xl font-bold text-midnight-gold tabular-nums">10 units (1%)</p>
+                  <p className="text-[11px] text-midnight-muted">
                     Step = max(1, floor(MOQ_W × 1 / 100))
                   </p>
                 </div>
               </div>
 
-              <div className="p-4 rounded-2xl border border-purple-500/20 bg-[#0E1020]/70 space-y-2">
+              <div className="p-4 rounded-lg border border-midnight-border bg-midnight-card space-y-2">
                 <span className="text-xs font-semibold text-white block">
                   Demonstration: Valid Retailer Order Quantities
                 </span>
@@ -1250,15 +1242,15 @@ export function LandingPage({
                   {[200, 210, 220, 230, 240, 250, 300].map((qty) => (
                     <span
                       key={qty}
-                      className="px-3 py-1 rounded-full bg-purple-950/40 border border-purple-500/30 text-xs font-mono text-pink-300 font-semibold shadow-[0_0_8px_rgba(236,72,153,0.15)]"
+                      className="px-2.5 py-1 rounded-md bg-midnight-surface border border-emerald-500/30 text-xs font-mono text-emerald-300 font-semibold"
                     >
                       {qty} units &bull; Valid &check;
                     </span>
                   ))}
-                  <span className="px-3 py-1 rounded-full bg-black/60 border border-rose-500/30 text-xs font-mono text-rose-300 line-through">
+                  <span className="px-2.5 py-1 rounded-md bg-midnight-surface border border-rose-500/30 text-xs font-mono text-rose-300 line-through">
                     190 units (Below MOQ_R)
                   </span>
-                  <span className="px-3 py-1 rounded-full bg-black/60 border border-rose-500/30 text-xs font-mono text-rose-300 line-through">
+                  <span className="px-2.5 py-1 rounded-md bg-midnight-surface border border-rose-500/30 text-xs font-mono text-rose-300 line-through">
                     205 units (Invalid Step)
                   </span>
                 </div>
@@ -1271,61 +1263,61 @@ export function LandingPage({
                 <h4 className="font-semibold text-sm text-white">
                   AI Invoice &amp; Informal Demand Parsing
                 </h4>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-midnight-muted">
                   Retailers submit invoices, voice notes, or informal WhatsApp text. The AI extracts structured commercial parameters.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
                 {/* Informal Input Box */}
-                <div className="md:col-span-5 p-4 rounded-2xl border border-purple-500/20 bg-[#0E1020]/70 space-y-2">
-                  <span className="text-xs font-semibold text-purple-300 uppercase tracking-wider block font-mono">
+                <div className="md:col-span-5 p-4 rounded-xl border border-midnight-border bg-midnight-surface/50 space-y-2">
+                  <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider block">
                     Unstructured Buyer Input
                   </span>
-                  <div className="p-3.5 rounded-xl bg-black/50 border border-purple-500/15 text-xs font-mono text-slate-300 leading-relaxed italic">
+                  <div className="p-3 rounded-lg bg-midnight-card border border-midnight-border/60 text-xs font-mono text-slate-300 leading-relaxed italic">
                     "We need 25 boxes of 12-ounce food-safe paper cups for our café."
                   </div>
-                  <span className="text-[11px] text-slate-400 block font-mono">
+                  <span className="text-[11px] text-midnight-muted block">
                     Source: Informal Kirana Request &bull; Timestamped
                   </span>
                 </div>
 
                 {/* Arrow */}
-                <div className="md:col-span-2 flex justify-center text-pink-400">
+                <div className="md:col-span-2 flex justify-center text-midnight-red">
                   <ArrowRight className="h-6 w-6 rotate-90 md:rotate-0" />
                 </div>
 
                 {/* Structured Fields Output */}
-                <div className="md:col-span-5 p-4 rounded-2xl border border-pink-500/30 bg-[#0E1020]/70 space-y-2 shadow-[0_0_20px_rgba(236,72,153,0.1)]">
-                  <span className="text-xs font-semibold text-pink-400 uppercase tracking-wider block font-mono">
+                <div className="md:col-span-5 p-4 rounded-xl border border-emerald-500/30 bg-midnight-card space-y-2">
+                  <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider block">
                     Parsed Structured Specifications
                   </span>
                   <div className="space-y-1 text-xs">
-                    <div className="flex justify-between py-1 border-b border-purple-500/15">
-                      <span className="text-slate-400">Product:</span>
+                    <div className="flex justify-between py-1 border-b border-midnight-border/40">
+                      <span className="text-midnight-muted">Product:</span>
                       <span className="font-semibold text-white">Paper Cups</span>
                     </div>
-                    <div className="flex justify-between py-1 border-b border-purple-500/15">
-                      <span className="text-slate-400">Quantity:</span>
+                    <div className="flex justify-between py-1 border-b border-midnight-border/40">
+                      <span className="text-midnight-muted">Quantity:</span>
                       <span className="font-semibold text-white">25 boxes</span>
                     </div>
-                    <div className="flex justify-between py-1 border-b border-purple-500/15">
-                      <span className="text-slate-400">Capacity:</span>
+                    <div className="flex justify-between py-1 border-b border-midnight-border/40">
+                      <span className="text-midnight-muted">Capacity:</span>
                       <span className="font-semibold text-white">12 oz</span>
                     </div>
-                    <div className="flex justify-between py-1 border-b border-purple-500/15">
-                      <span className="text-slate-400">Material:</span>
+                    <div className="flex justify-between py-1 border-b border-midnight-border/40">
+                      <span className="text-midnight-muted">Material:</span>
                       <span className="font-semibold text-white">Paperboard</span>
                     </div>
-                    <div className="flex justify-between py-1 border-b border-purple-500/15">
-                      <span className="text-slate-400">Food Safe:</span>
-                      <Badge variant="success" className="text-[10px] py-0 px-2 rounded-full bg-emerald-950/60 border border-emerald-500/30 text-emerald-300">
+                    <div className="flex justify-between py-1 border-b border-midnight-border/40">
+                      <span className="text-midnight-muted">Food Safe:</span>
+                      <Badge variant="success" className="text-[10px] py-0 px-1.5">
                         Required &check;
                       </Badge>
                     </div>
                     <div className="flex justify-between py-1">
-                      <span className="text-slate-400">Delivery Area:</span>
-                      <Badge variant="warning" className="text-[10px] py-0 px-2 rounded-full bg-amber-950/60 border border-amber-500/30 text-amber-300">
+                      <span className="text-midnight-muted">Delivery Area:</span>
+                      <Badge variant="warning" className="text-[10px] py-0 px-1.5">
                         Lucknow (Confirm Pin)
                       </Badge>
                     </div>
@@ -1340,7 +1332,7 @@ export function LandingPage({
                 <h4 className="font-semibold text-sm text-white">
                   72-Hour Pool Recruitment &amp; 24-Hour Consent Matrix
                 </h4>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-midnight-muted">
                   Transparent state machine ensuring silence is never consent and 100% refund safety.
                 </p>
               </div>
@@ -1351,31 +1343,31 @@ export function LandingPage({
                     stage: 'Stage 1: Pool Opens (00:00 - 72:00h)',
                     desc: 'The 72-hour buyer recruitment window opens. Local shops join and deposit their allocation into the PayPal Sandbox escrow.',
                     status: 'RECRUITING',
-                    color: 'text-purple-300 border-purple-500/30 bg-purple-950/20',
+                    color: 'text-teal-400 border-teal-500/40 bg-teal-950/20',
                   },
                   {
                     stage: 'Stage 2: Early Lock on MOQ',
                     desc: 'If cumulative orders reach MOQ_W before 72h, the pool locks early. Price snapshot is frozen and final confirmation dispatch starts.',
                     status: 'MOQ_LOCKED',
-                    color: 'text-pink-300 border-pink-500/40 bg-pink-950/20 shadow-[0_0_15px_rgba(236,72,153,0.15)]',
+                    color: 'text-emerald-400 border-emerald-500/40 bg-emerald-950/20',
                   },
                   {
                     stage: 'Stage 3: 72h Window Expires Under-MOQ',
                     desc: 'If pool closes below MOQ_W, pool automatically transitions to decision mode. All participants receive immediate in-app and SMS alerts.',
                     status: 'EXPIRED_UNDER_MOQ',
-                    color: 'text-amber-300 border-amber-500/30 bg-amber-950/20',
+                    color: 'text-amber-400 border-amber-500/40 bg-amber-950/20',
                   },
                   {
                     stage: 'Stage 4: 24h Buyer Decision Window',
                     desc: 'AI recommends supplier feasibility. Each buyer explicitly chooses: (A) proceed with revised under-MOQ rate, or (B) cancel for 100% refund. Silence is never consent.',
                     status: 'DECISION_WINDOW',
-                    color: 'text-indigo-300 border-indigo-500/30 bg-indigo-950/20',
+                    color: 'text-rose-400 border-rose-500/40 bg-rose-950/20',
                   },
                 ].map((s, idx) => (
-                  <div key={idx} className={`p-4 rounded-2xl border ${s.color} space-y-1`}>
+                  <div key={idx} className={`p-3.5 rounded-lg border ${s.color} space-y-1`}>
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-xs text-white">{s.stage}</span>
-                      <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-black/50 border border-current font-bold">
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-black/40 border border-current font-bold">
                         {s.status}
                       </span>
                     </div>
@@ -1390,7 +1382,7 @@ export function LandingPage({
             <Button
               variant="secondary"
               onClick={() => setHowItWorksOpen(false)}
-              className="text-xs rounded-full px-5 border border-purple-500/30 bg-purple-950/30 text-purple-200 hover:bg-purple-900/50"
+              className="text-xs"
             >
               Close Guide
             </Button>
@@ -1403,12 +1395,12 @@ export function LandingPage({
         open={Boolean(selectedPoolForJoin)}
         onOpenChange={(val) => !val && setSelectedPoolForJoin(null)}
       >
-        <DialogContent className="max-w-lg bg-[#090A14] border border-purple-500/30 text-white shadow-[0_0_50px_rgba(168,85,247,0.15)]">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-lg font-display font-semibold text-white">
+            <DialogTitle className="text-lg">
               Join Group Buy Pool
             </DialogTitle>
-            <DialogDescription className="text-slate-400 text-xs">
+            <DialogDescription>
               {selectedPoolForJoin?.title}
             </DialogDescription>
           </DialogHeader>
@@ -1416,56 +1408,56 @@ export function LandingPage({
           {/* If Payment Confirmed, Display Live Success Receipt */}
           {paymentReceipt ? (
             <div className="space-y-4 pt-2 text-left">
-              <div className="flex items-center gap-3 p-4 rounded-2xl bg-purple-950/40 border border-purple-500/30 text-pink-300 shadow-[0_0_20px_rgba(236,72,153,0.15)]">
-                <CheckCircle2 className="h-6 w-6 shrink-0 text-pink-400" />
+              <div className="flex items-center gap-3 p-4 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-emerald-400">
+                <CheckCircle2 className="h-6 w-6 shrink-0" />
                 <div>
                   <h4 className="text-sm font-bold text-white">Payment Confirmed &amp; Group Buy Joined!</h4>
-                  <p className="text-xs text-purple-200 mt-0.5">
+                  <p className="text-xs text-emerald-300 mt-0.5">
                     Your allocation of {paymentReceipt.addedQty} {paymentReceipt.poolUnit} is now active in {paymentReceipt.poolTitle}.
                   </p>
                 </div>
               </div>
 
-              <div className="bg-[#0E1020]/80 rounded-2xl border border-purple-500/20 p-4 space-y-2 text-xs">
+              <div className="bg-midnight-surface/80 rounded-lg border border-midnight-border/70 p-3.5 space-y-2 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Payment Method:</span>
+                  <span className="text-midnight-muted">Payment Method:</span>
                   <span className="font-semibold text-white">{paymentReceipt.method}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Capture Reference:</span>
-                  <span className="font-mono text-pink-400 select-all font-semibold">{paymentReceipt.captureId}</span>
+                  <span className="text-midnight-muted">Capture Reference:</span>
+                  <span className="font-mono text-emerald-400 select-all font-semibold">{paymentReceipt.captureId}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Total Paid:</span>
-                  <span className="font-bold text-white font-mono">₹{paymentReceipt.calculatedCost}</span>
+                  <span className="text-midnight-muted">Total Paid:</span>
+                  <span className="font-bold text-white">₹{paymentReceipt.calculatedCost}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Payment Status:</span>
-                  <Badge variant="success" className="text-[10px] font-bold rounded-full bg-purple-950/50 border border-purple-500/30 text-purple-300">{paymentReceipt.status}</Badge>
+                  <span className="text-midnight-muted">Payment Status:</span>
+                  <Badge variant="success" className="text-[10px] font-bold">{paymentReceipt.status}</Badge>
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-black/50 border border-purple-500/15 text-[11px] text-slate-400 space-y-1">
+              <div className="p-3 rounded-lg bg-midnight-bg border border-midnight-border/60 text-[11px] text-midnight-muted space-y-1">
                 <p className="text-slate-200 font-medium">✓ Pool progress for this item has been updated.</p>
                 <p>Retailer escrow is locked in PayPal Sandbox until MOQ completion. If MOQ is reached within 72h, batch purchase will be finalized.</p>
               </div>
             </div>
           ) : selectedPoolForJoin && (
             <div className="space-y-4 pt-2 text-left">
-              <div className="p-3.5 rounded-2xl bg-[#0E1020]/80 border border-purple-500/20 space-y-2 text-xs">
+              <div className="p-3 rounded-lg bg-midnight-surface/60 border border-midnight-border space-y-2 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Supplier:</span>
+                  <span className="text-midnight-muted">Supplier:</span>
                   <span className="font-semibold text-white">{selectedPoolForJoin.supplier}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Applicable Rate:</span>
-                  <span className="font-semibold text-pink-400 font-mono">
+                  <span className="text-midnight-muted">Applicable Rate:</span>
+                  <span className="font-semibold text-midnight-emerald">
                     ₹{selectedPoolForJoin.currentTierPrice} / {selectedPoolForJoin.unit}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Retailer Minimum MOQ:</span>
-                  <span className="font-semibold text-white font-mono">
+                  <span className="text-midnight-muted">Retailer Minimum MOQ:</span>
+                  <span className="font-semibold text-white">
                     {selectedPoolForJoin.moqR} {selectedPoolForJoin.unit}
                   </span>
                 </div>
@@ -1482,7 +1474,6 @@ export function LandingPage({
                     variant="secondary"
                     size="icon"
                     aria-label="Decrease quantity"
-                    className="h-10 w-10 rounded-full border border-purple-500/30 bg-purple-950/30 text-purple-200 hover:bg-purple-900/50"
                     disabled={Number(joinQuantity) <= (selectedPoolForJoin.moqR || 1)}
                     onClick={() => {
                       const minQ = selectedPoolForJoin.moqR || 1;
@@ -1531,13 +1522,13 @@ export function LandingPage({
                           setJoinQuantityError(`Minimum order quantity is ${selectedPoolForJoin.moqR} ${selectedPoolForJoin.unit} (20% of the wholesaler MOQ).`);
                         }
                       }}
-                      className={`h-11 w-full text-center font-display font-bold text-xl rounded-full border bg-[#0E1020] px-4 py-2 text-white transition-all focus:outline-none tabular-nums ${
+                      className={`h-10 w-full text-center font-display font-bold text-xl rounded-lg border bg-midnight-surface px-3 py-2 text-white transition-colors focus:outline-none tabular-nums ${
                         joinQuantityError
                           ? 'border-rose-500 focus:border-rose-500 text-rose-300'
-                          : 'border-purple-500/30 focus:border-pink-500 focus:shadow-[0_0_15px_rgba(236,72,153,0.3)]'
+                          : 'border-midnight-border focus:border-midnight-emerald'
                       }`}
                     />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-normal text-purple-300/70 pointer-events-none">
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-normal text-midnight-muted pointer-events-none">
                       {selectedPoolForJoin.unit}
                     </span>
                   </div>
@@ -1547,7 +1538,6 @@ export function LandingPage({
                     variant="secondary"
                     size="icon"
                     aria-label="Increase quantity"
-                    className="h-10 w-10 rounded-full border border-purple-500/30 bg-purple-950/30 text-purple-200 hover:bg-purple-900/50"
                     onClick={() => {
                       const minQ = selectedPoolForJoin.moqR || 1;
                       const nextVal = (Number(joinQuantity) || minQ) + 1;
@@ -1567,43 +1557,43 @@ export function LandingPage({
               </div>
 
               {/* Calculated Cost Share */}
-              <div className="p-3.5 rounded-2xl border border-purple-500/30 bg-purple-950/20 flex items-center justify-between shadow-[0_0_15px_rgba(168,85,247,0.1)]">
+              <div className="p-3.5 rounded-lg border border-emerald-500/30 bg-emerald-950/20 flex items-center justify-between">
                 <div>
-                  <span className="text-xs text-slate-400 block font-mono">Your Merchandise Share:</span>
-                  <span className="text-xl font-display font-bold text-white tabular-nums font-mono bg-gradient-to-r from-pink-400 to-purple-300 bg-clip-text text-transparent">
+                  <span className="text-xs text-slate-400 block">Your Merchandise Share:</span>
+                  <span className="text-xl font-display font-bold text-white tabular-nums">
                     ₹{(joinQuantity * selectedPoolForJoin.currentTierPrice).toLocaleString('en-IN')}
                   </span>
                 </div>
-                <Badge variant="payment" className="text-xs rounded-full bg-purple-950/60 border border-purple-500/30 text-purple-200 font-mono">
+                <Badge variant="payment" className="text-xs">
                   Pay at Join (Sandbox)
                 </Badge>
               </div>
 
               {/* Payment Method Selector Tabs */}
-              <div className="space-y-3 pt-1 border-t border-purple-500/15">
+              <div className="space-y-3 pt-1 border-t border-midnight-border/60">
                 <div className="flex gap-2">
                   <button
                     type="button"
                     onClick={() => setJoinPaymentTab('paypal')}
-                    className={`flex-1 py-2 px-3 rounded-full text-xs font-semibold border flex items-center justify-center gap-1.5 transition-all ${
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 transition-colors ${
                       joinPaymentTab === 'paypal'
-                        ? 'bg-purple-950/50 border-purple-500/50 text-white shadow-[0_0_15px_rgba(168,85,247,0.25)]'
-                        : 'bg-black/40 border-purple-500/20 text-slate-400 hover:text-white'
+                        ? 'bg-blue-950/50 border-blue-500/50 text-white'
+                        : 'bg-midnight-surface/50 border-midnight-border text-midnight-muted hover:text-white'
                     }`}
                   >
-                    <CreditCard className="h-3.5 w-3.5 text-purple-400" />
+                    <CreditCard className="h-3.5 w-3.5 text-blue-400" />
                     PayPal Sandbox (Test Cards)
                   </button>
                   <button
                     type="button"
                     onClick={() => setJoinPaymentTab('oneclick')}
-                    className={`flex-1 py-2 px-3 rounded-full text-xs font-semibold border flex items-center justify-center gap-1.5 transition-all ${
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 transition-colors ${
                       joinPaymentTab === 'oneclick'
-                        ? 'bg-pink-950/40 border-pink-500/50 text-pink-200 shadow-[0_0_15px_rgba(236,72,153,0.25)]'
-                        : 'bg-black/40 border-purple-500/20 text-slate-400 hover:text-white'
+                        ? 'bg-midnight-red/20 border-midnight-red/50 text-white'
+                        : 'bg-midnight-surface/50 border-midnight-border text-midnight-muted hover:text-white'
                     }`}
                   >
-                    <Sparkles className="h-3.5 w-3.5 text-pink-400" />
+                    <Sparkles className="h-3.5 w-3.5 text-midnight-red" />
                     Quick 1-Click Pay
                   </button>
                 </div>
@@ -1611,36 +1601,36 @@ export function LandingPage({
                 {/* Tab A: PayPal Sandbox Interface with Test Cards */}
                 {joinPaymentTab === 'paypal' && (
                   <div className="space-y-3">
-                    <div className="rounded-2xl bg-purple-950/30 border border-purple-500/30 p-3.5 space-y-2 text-xs">
+                    <div className="rounded-lg bg-blue-950/40 border border-blue-500/30 p-3 space-y-2 text-xs">
                       <div className="flex items-center justify-between">
-                        <span className="font-semibold text-purple-300 flex items-center gap-1.5">
-                          <CreditCard className="h-3.5 w-3.5 text-pink-400" />
+                        <span className="font-semibold text-blue-300 flex items-center gap-1.5">
+                          <CreditCard className="h-3.5 w-3.5 text-blue-400" />
                           PayPal Sandbox Test Card
                         </span>
                         <button
                           type="button"
                           onClick={copyTestCard}
-                          className="inline-flex items-center gap-1 text-[10px] text-purple-300 hover:text-white bg-purple-900/40 hover:bg-purple-800/60 px-2.5 py-0.5 rounded-full border border-purple-500/40 transition-colors"
+                          className="inline-flex items-center gap-1 text-[10px] text-blue-300 hover:text-white bg-blue-900/50 hover:bg-blue-800/60 px-2 py-0.5 rounded border border-blue-700/50 transition-colors"
                         >
-                          {copiedCard ? <Check className="h-3 w-3 text-pink-400" /> : <Copy className="h-3 w-3" />}
+                          {copiedCard ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
                           {copiedCard ? 'Copied' : 'Copy Card'}
                         </button>
                       </div>
-                      <div className="grid grid-cols-3 gap-1.5 bg-[#090A14] p-2.5 rounded-xl border border-purple-500/20 font-mono text-[10px]">
+                      <div className="grid grid-cols-3 gap-1.5 bg-midnight-surface/80 p-2 rounded border border-blue-500/20 font-mono text-[10px]">
                         <div>
-                          <span className="text-slate-500 block">CARD</span>
+                          <span className="text-midnight-muted block">CARD</span>
                           <span className="text-white select-all font-semibold">4012 8888 8888 1881</span>
                         </div>
                         <div>
-                          <span className="text-slate-500 block">EXP</span>
+                          <span className="text-midnight-muted block">EXP</span>
                           <span className="text-white select-all font-semibold">05/28</span>
                         </div>
                         <div>
-                          <span className="text-slate-500 block">CVV/ZIP</span>
+                          <span className="text-midnight-muted block">CVV/ZIP</span>
                           <span className="text-white select-all font-semibold">123 / 10001</span>
                         </div>
                       </div>
-                      <p className="text-[10px] text-purple-300/80">
+                      <p className="text-[10px] text-blue-300/80">
                         Click <strong>Debit or Credit Card</strong> below to enter card details, or <strong>PayPal</strong> for sandbox login.
                       </p>
                     </div>
@@ -1689,7 +1679,7 @@ export function LandingPage({
                       <Button
                         variant="primary"
                         onClick={handleConfirmJoin}
-                        className="w-full text-xs font-semibold py-2.5 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white shadow-[0_0_20px_rgba(236,72,153,0.4)]"
+                        className="w-full text-xs font-semibold py-2.5"
                         disabled={Boolean(joinQuantityError) || !joinQuantity || joinQuantity < (selectedPoolForJoin?.moqR || 1)}
                       >
                         Confirm Participation &amp; Pay (Test Mode)
@@ -1700,15 +1690,15 @@ export function LandingPage({
 
                 {/* Tab B: Quick 1-Click Pay */}
                 {joinPaymentTab === 'oneclick' && (
-                  <div className="p-3.5 rounded-2xl bg-purple-950/20 border border-purple-500/20 space-y-2 text-xs">
-                    <p className="text-slate-400 text-[11px]">
+                  <div className="p-3 rounded-lg bg-midnight-surface/50 border border-midnight-border space-y-2 text-xs">
+                    <p className="text-midnight-muted text-[11px]">
                       Instant local sandbox checkout bypasses typing card details and immediately increments pool progress.
                     </p>
                   </div>
                 )}
               </div>
 
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-midnight-muted">
                 You will be charged minor integer paise units via PayPal Sandbox adapter. If pool fails to reach MOQ within 72 hours, 100% refund is initiated automatically.
               </p>
             </div>
@@ -1718,7 +1708,7 @@ export function LandingPage({
             <Button
               variant="outline"
               onClick={() => setSelectedPoolForJoin(null)}
-              className="text-xs rounded-full px-5 border border-purple-500/30 text-slate-300 hover:text-white hover:bg-purple-950/30"
+              className="text-xs"
             >
               {paymentReceipt ? 'Close' : 'Cancel'}
             </Button>
@@ -1726,7 +1716,7 @@ export function LandingPage({
               <Button
                 variant="primary"
                 onClick={handleConfirmJoin}
-                className="text-xs font-semibold rounded-full px-5 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white shadow-[0_0_20px_rgba(236,72,153,0.4)]"
+                className="text-xs font-semibold"
                 disabled={Boolean(joinQuantityError) || !joinQuantity || joinQuantity < (selectedPoolForJoin?.moqR || 1)}
               >
                 Confirm Participation &amp; Pay
@@ -1736,7 +1726,7 @@ export function LandingPage({
               <Button
                 variant="primary"
                 onClick={() => setSelectedPoolForJoin(null)}
-                className="text-xs font-semibold rounded-full px-5 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white shadow-[0_0_20px_rgba(236,72,153,0.4)]"
+                className="text-xs font-semibold"
               >
                 Done
               </Button>
