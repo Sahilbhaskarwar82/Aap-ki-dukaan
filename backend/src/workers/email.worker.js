@@ -111,3 +111,4 @@ emailWorker.on("failed", (job, err) => {
 });
 
 export default emailWorker;
+
