@@ -422,11 +422,6 @@ export function LandingPage({
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 xl:gap-16 items-center">
             {/* Left Column (Hero Content) */}
             <div className="lg:col-span-7 xl:col-span-7 space-y-5 xl:space-y-6">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-midnight-red/15 border border-midnight-red/30 text-xs font-semibold text-red-400">
-                <Flame className="h-3.5 w-3.5 text-midnight-red animate-pulse" />
-                <span>B2B REGIONAL DEMAND AGGREGATION</span>
-              </div>
-
               <h1 className="font-display font-bold text-3xl sm:text-4xl lg:text-5xl xl:text-6xl text-white tracking-tight leading-[1.12] xl:leading-[1.08] max-w-3xl">
                 WHOLESALE PRICES.{' '}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-rose-300 to-amber-300">
@@ -461,18 +456,6 @@ export function LandingPage({
                   <Sparkles className="mr-2 h-4 w-4 text-midnight-gold" />
                   How Collective Buying Works
                 </Button>
-              </div>
-
-              {/* Real-time Ticker Highlight */}
-              <div className="pt-2">
-                <div className="inline-flex items-center gap-2 p-2.5 rounded-lg bg-midnight-card border border-midnight-border/80 text-xs text-slate-300 max-w-2xl">
-                  <Badge variant="warning" className="text-[10px] py-0 px-1.5 font-bold">
-                    POOL CLOSING SOON
-                  </Badge>
-                  <span>
-                    <strong>12oz Paper Cups</strong> &bull; 85% MOQ reached &bull; Unlocked <strong>₹80/carton</strong> (Save 20%)
-                  </span>
-                </div>
               </div>
             </div>
 

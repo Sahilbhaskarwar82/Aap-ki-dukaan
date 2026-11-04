@@ -80,16 +80,6 @@ export function PublicLayout({
     <div className="min-h-screen bg-midnight-bg text-midnight-text flex flex-col font-sans">
       <Toaster />
 
-      {/* Top Test Environment Announcement Bar */}
-      <div className="bg-gradient-to-r from-midnight-red/20 via-midnight-card to-midnight-emerald/20 border-b border-midnight-border/60 py-1.5 px-4 text-center text-xs font-medium text-slate-300 flex items-center justify-center gap-2">
-        <Badge variant="warning" className="text-[10px] py-0 px-1.5 uppercase font-bold tracking-wider">
-          Demo Environment
-        </Badge>
-        <span>
-          Collective B2B Buying Prototype &bull; Regional Demand Pooling Live in <strong>Lucknow Hub</strong>
-        </span>
-      </div>
-
       {/* Primary Sticky Marketplace Header */}
       <header className="sticky top-0 z-40 glass-nav">
         <div className="marketplace-container">

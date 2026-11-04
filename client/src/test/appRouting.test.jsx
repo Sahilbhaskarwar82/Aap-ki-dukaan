@@ -223,7 +223,6 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
         </MemoryRouter>
       );
 
-      expect(screen.getByText(/B2B REGIONAL DEMAND AGGREGATION/i)).toBeInTheDocument();
       expect(screen.getByText(/WHOLESALE PRICES/i)).toBeInTheDocument();
     });
 
@@ -268,7 +267,6 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
       await userEvent.click(backLink);
 
       // Successfully navigated to LandingPage without modifying auth
-      expect(screen.getByText(/B2B REGIONAL DEMAND AGGREGATION/i)).toBeInTheDocument();
       expect(screen.getByText(/WHOLESALE PRICES/i)).toBeInTheDocument();
     });
 
@@ -287,7 +285,6 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
       await userEvent.click(backLink);
 
       // Successfully navigated to LandingPage without modifying auth
-      expect(screen.getByText(/B2B REGIONAL DEMAND AGGREGATION/i)).toBeInTheDocument();
       expect(screen.getByText(/WHOLESALE PRICES/i)).toBeInTheDocument();
     });
   });
@@ -819,7 +816,7 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
       );
       const link = screen.getByRole('link', { name: /Back to Marketplace/i });
       await userEvent.click(link);
-      expect(screen.getByText(/B2B REGIONAL DEMAND AGGREGATION/i)).toBeInTheDocument();
+      expect(screen.getByText(/WHOLESALE PRICES/i)).toBeInTheDocument();
     });
 
     it('Flow 2: navigates from RegisterPage to Marketplace via "← Back to Marketplace"', async () => {
@@ -831,7 +828,7 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
       );
       const link = screen.getByRole('link', { name: /Back to Marketplace/i });
       await userEvent.click(link);
-      expect(screen.getByText(/B2B REGIONAL DEMAND AGGREGATION/i)).toBeInTheDocument();
+      expect(screen.getByText(/WHOLESALE PRICES/i)).toBeInTheDocument();
     });
 
     it('Flow 3: authenticated SHOP_OWNER navigates to Marketplace from /dashboard', async () => {
@@ -843,7 +840,7 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
       );
       const marketplaceBtn = screen.getByRole('button', { name: /^marketplace$/i });
       await userEvent.click(marketplaceBtn);
-      expect(screen.getByText(/B2B REGIONAL DEMAND AGGREGATION/i)).toBeInTheDocument();
+      expect(screen.getByText(/WHOLESALE PRICES/i)).toBeInTheDocument();
     });
 
     it('Flow 4: authenticated SUPPLIER navigates to Marketplace from /supplier-portal', async () => {
@@ -855,7 +852,7 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
       );
       const marketplaceBtn = screen.getByRole('button', { name: /^marketplace$/i });
       await userEvent.click(marketplaceBtn);
-      expect(screen.getByText(/B2B REGIONAL DEMAND AGGREGATION/i)).toBeInTheDocument();
+      expect(screen.getByText(/WHOLESALE PRICES/i)).toBeInTheDocument();
     });
 
     it('Flow 5: authenticated ADMIN navigates to Marketplace from /admin', async () => {
@@ -867,7 +864,7 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
       );
       const marketplaceBtn = screen.getByRole('button', { name: /^marketplace$/i });
       await userEvent.click(marketplaceBtn);
-      expect(screen.getByText(/B2B REGIONAL DEMAND AGGREGATION/i)).toBeInTheDocument();
+      expect(screen.getByText(/WHOLESALE PRICES/i)).toBeInTheDocument();
     });
 
     it('Flow 6: authenticated REVIEWER navigates to Marketplace from /admin', async () => {
@@ -879,7 +876,7 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
       );
       const marketplaceBtn = screen.getByRole('button', { name: /^marketplace$/i });
       await userEvent.click(marketplaceBtn);
-      expect(screen.getByText(/B2B REGIONAL DEMAND AGGREGATION/i)).toBeInTheDocument();
+      expect(screen.getByText(/WHOLESALE PRICES/i)).toBeInTheDocument();
     });
 
     it('Flow 7: clicking CoBuy AI logo in app header navigates to Marketplace', async () => {
@@ -891,7 +888,7 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
       );
       const brandLogo = screen.getByRole('button', { name: /CoBuy AI Marketplace Home/i });
       await userEvent.click(brandLogo);
-      expect(screen.getByText(/B2B REGIONAL DEMAND AGGREGATION/i)).toBeInTheDocument();
+      expect(screen.getByText(/WHOLESALE PRICES/i)).toBeInTheDocument();
     });
 
     it('Flow 8: clicking Marketplace sidebar link navigates to Marketplace', async () => {
@@ -905,7 +902,7 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
       const marketplaceLink = sidebar.querySelector('button');
       expect(marketplaceLink).toHaveTextContent('Marketplace');
       await userEvent.click(marketplaceLink);
-      expect(screen.getByText(/B2B REGIONAL DEMAND AGGREGATION/i)).toBeInTheDocument();
+      expect(screen.getByText(/WHOLESALE PRICES/i)).toBeInTheDocument();
     });
 
     it('Flow 9: confirms authentication remains active and logout is never called when navigating to /', async () => {
@@ -928,7 +925,7 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
       const marketplaceBtn = screen.getByRole('button', { name: /^marketplace$/i });
       await userEvent.click(marketplaceBtn);
 
-      expect(screen.getByText(/B2B REGIONAL DEMAND AGGREGATION/i)).toBeInTheDocument();
+      expect(screen.getByText(/WHOLESALE PRICES/i)).toBeInTheDocument();
       expect(logoutMock).not.toHaveBeenCalled();
       expect(useAuth().isAuthenticated).toBe(true);
       expect(useAuth().user.role).toBe('SHOP_OWNER');
@@ -945,7 +942,7 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
       // Step 1: Navigate to marketplace
       const marketplaceBtn = screen.getByRole('button', { name: /^marketplace$/i });
       await userEvent.click(marketplaceBtn);
-      expect(screen.getByText(/B2B REGIONAL DEMAND AGGREGATION/i)).toBeInTheDocument();
+      expect(screen.getByText(/WHOLESALE PRICES/i)).toBeInTheDocument();
 
       // Step 2: Return to dashboard via navbar Dashboard button
       const dashboardBtn = screen.getByRole('button', { name: /Open Dashboard/i });
