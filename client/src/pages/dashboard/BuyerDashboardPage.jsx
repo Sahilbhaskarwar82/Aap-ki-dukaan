@@ -133,8 +133,19 @@ export function BuyerDashboardPage() {
       }
 
       if (reqsResult.status === 'fulfilled') {
-        const reqData = reqsResult.value?.data?.requirements || reqsResult.value?.data || reqsResult.value || [];
-        setRequirements(Array.isArray(reqData) ? reqData : []);
+        // Backend wraps: { data: { data: { requirements: [...], pagination: {...} }, message, statusCode } }
+        // So res.data.data.requirements is the array we need.
+        const resPayload = reqsResult.value?.data?.data !== undefined
+          ? reqsResult.value.data.data
+          : reqsResult.value?.data;
+        const reqData = Array.isArray(resPayload)
+          ? resPayload
+          : Array.isArray(resPayload?.requirements)
+          ? resPayload.requirements
+          : Array.isArray(reqsResult.value?.data?.requirements)
+          ? reqsResult.value.data.requirements
+          : [];
+        setRequirements(reqData);
       } else {
         setRequirements([]);
       }
@@ -629,9 +640,28 @@ export function BuyerDashboardPage() {
           ) : (
             <div className="divide-y divide-midnight-border/50 text-sm">
               {requirements.slice(0, 4).map((r) => {
-                const displayTitle = r.title || r.lineItems?.[0]?.rawItemText || 'Requirement';
-                const quantity = r.lineItems?.[0]?.quantity || r.targetQuantity || r.confirmedFields?.requestedQuantity;
-                const unit = r.lineItems?.[0]?.unit || r.confirmedFields?.unit || '';
+                const displayTitle =
+                  r.productName ||
+                  r.confirmedFields?.productName ||
+                  r.extractedFields?.productName ||
+                  r.title ||
+                  r.lineItems?.[0]?.rawItemText ||
+                  r.originalDescription ||
+                  'Requirement';
+                const quantity =
+                  r.requestedQuantity ||
+                  r.confirmedFields?.requestedQuantity ||
+                  r.extractedFields?.requestedQuantity ||
+                  r.lineItems?.[0]?.quantity ||
+                  r.targetQuantity ||
+                  '';
+                const unit =
+                  r.quantityUnit ||
+                  r.confirmedFields?.quantityUnit ||
+                  r.extractedFields?.quantityUnit ||
+                  r.lineItems?.[0]?.unit ||
+                  r.confirmedFields?.unit ||
+                  '';
 
                 return (
                   <div key={r._id} className="py-2.5 flex items-center justify-between gap-3">
@@ -810,3 +840,4 @@ export function BuyerDashboardPage() {
 }
 
 export default BuyerDashboardPage;
+

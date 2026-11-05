@@ -119,9 +119,10 @@ export const listRequirements = asyncHandler(async (req, res) => {
 
   const filter = {};
 
-  // Scope to authenticated user's shop if retailer
-  if (req.user?.shopId) {
-    filter.shopId = req.user.shopId;
+  // Scope to authenticated user's shop if retailer (req.shop is set by verifyJWT for SHOP_OWNER)
+  const authenticatedShopId = req.shop?._id || req.user?.shopId;
+  if (authenticatedShopId) {
+    filter.shopId = authenticatedShopId;
   } else if (shopId && mongoose.Types.ObjectId.isValid(shopId)) {
     filter.shopId = new mongoose.Types.ObjectId(shopId);
   }
@@ -493,3 +494,103 @@ export const getRequirementMatches = asyncHandler(async (req, res) => {
   );
 });
 
+
+
+/**
+ * Task SAH-02: PATCH /api/requirements/:id/confirm
+ * Dedicated confirm endpoint called by the frontend confirmRequirement() API function.
+ * Enforces Business Rule BR-001 and transitions the requirement to CONFIRMED status.
+ */
+export const confirmRequirement = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new ApiError(400, "Invalid requirement ID format.");
+  }
+
+  const requirement = await Requirement.findById(id);
+  if (!requirement) {
+    throw new ApiError(404, "Purchasing requirement not found.");
+  }
+
+  // Ownership guard: Retailers can only confirm their own shop's requirements
+  const authenticatedShopId = req.shop?._id || req.user?.shopId;
+  if (req.user && req.user.role === "SHOP_OWNER" && authenticatedShopId) {
+    if (!requirement.shopId.equals(authenticatedShopId)) {
+      throw new ApiError(403, "Access denied: You cannot confirm another shop's requirement.");
+    }
+  }
+
+  const { confirmedFields: incomingConfirmedFields = {} } = req.body || {};
+
+  // Merge existing confirmed fields with incoming
+  const mergedConfirmed = {
+    ...requirement.confirmedFields?.toObject?.(),
+    ...incomingConfirmedFields,
+  };
+
+  // Enforce Business Rule BR-001
+  validateRuleBR001(mergedConfirmed);
+
+  // Sync authoritative top-level flattened indexed properties
+  requirement.confirmedFields = mergedConfirmed;
+  requirement.productName = mergedConfirmed.productName.trim();
+  requirement.category = mergedConfirmed.category.trim().toUpperCase();
+  requirement.requestedQuantity = mergedConfirmed.requestedQuantity;
+  requirement.quantityUnit = mergedConfirmed.quantityUnit.trim().toUpperCase();
+  requirement.deliveryArea = mergedConfirmed.deliveryArea.trim().toUpperCase();
+  requirement.packSize = mergedConfirmed.packSize?.trim() || null;
+  requirement.requiredBy = mergedConfirmed.requiredBy ? new Date(mergedConfirmed.requiredBy) : null;
+
+  requirement.status = "CONFIRMED";
+  requirement.confirmedByUserId =
+    req.user?._id || req.body.confirmedByUserId || requirement.createdByUserId;
+  requirement.confirmedAt = new Date();
+
+  await requirement.save();
+
+  return res.status(200).json(
+    new APIResponse(200, requirement, "Requirement confirmed successfully. Rule BR-001 validated.")
+  );
+});
+
+/**
+ * Task SAH-02: PATCH /api/requirements/:id/reject
+ * Dedicated reject endpoint called by the frontend rejectRequirement() API function.
+ * Transitions the requirement to REJECTED status.
+ */
+export const rejectRequirement = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new ApiError(400, "Invalid requirement ID format.");
+  }
+
+  const requirement = await Requirement.findById(id);
+  if (!requirement) {
+    throw new ApiError(404, "Purchasing requirement not found.");
+  }
+
+  // Ownership guard: Retailers can only reject their own shop's requirements
+  const authenticatedShopId = req.shop?._id || req.user?.shopId;
+  if (req.user && req.user.role === "SHOP_OWNER" && authenticatedShopId) {
+    if (!requirement.shopId.equals(authenticatedShopId)) {
+      throw new ApiError(403, "Access denied: You cannot reject another shop's requirement.");
+    }
+  }
+
+  // Guard: Cannot reject an already-confirmed requirement
+  if (requirement.status === "CONFIRMED") {
+    throw new ApiError(
+      409,
+      "Cannot reject a requirement that has already been confirmed. Archive it instead."
+    );
+  }
+
+  requirement.status = "REJECTED";
+  await requirement.save();
+
+  return res.status(200).json(
+    new APIResponse(200, requirement, "Requirement has been rejected and marked as inactive.")
+  );
+});
