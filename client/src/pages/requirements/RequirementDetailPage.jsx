@@ -1084,6 +1084,7 @@ export default function RequirementDetailPage() {
                             </Button>
                           </DialogClose>
                           <Button
+                            type="button"
                             variant="danger"
                             size="sm"
                             onClick={handleRejectRequirement}
@@ -1245,3 +1246,5 @@ export default function RequirementDetailPage() {
     </div>
   );
 }
+
+
