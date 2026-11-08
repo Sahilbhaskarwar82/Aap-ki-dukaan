@@ -421,7 +421,39 @@ export const recalculatePool = async (poolId, session = null) => {
     await pool.save(opts);
 
     // Freeze authoritative PriceSnapshot
-    await freezePriceSnapshot(poolId, session);
+    const snapshot = await freezePriceSnapshot(poolId, session);
+
+    // Queue is complete: directly process order without asking manufacturer permission
+    const activeContribs = await Contribution.find({
+      poolId,
+      state: { $in: ["ACTIVE", "PENDING_PAYMENT"] },
+    }).session(session);
+
+    const allPaid = activeContribs.length > 0 && activeContribs.every(
+      (c) => (c.totalPaidMinor || 0) >= (c.estimatedMerchandiseShareMinor || 0)
+    );
+
+    if (allPaid || pool.paymentPolicy === "PAY_AT_JOIN") {
+      for (const c of activeContribs) {
+        c.approvalStatus = "APPROVED";
+        c.approvedPriceSnapshotId = snapshot?._id || pool.latestPriceSnapshotId;
+        c.approvedAt = clockService.now();
+        await c.save(opts);
+      }
+      const reloadedPool = await GroupBuyPool.findById(poolId).session(session);
+      if (reloadedPool) {
+        reloadedPool.state = "FUNDED";
+        await reloadedPool.save(opts);
+        pool.state = "FUNDED";
+      }
+
+      try {
+        const { createFinalOrderFromFundedPool } = await import("../orders/order.service.js");
+        await createFinalOrderFromFundedPool(poolId, session);
+      } catch (ordErr) {
+        console.warn("Direct order processing notice on queue complete:", ordErr.message);
+      }
+    }
   } else {
     await pool.save(opts);
   }

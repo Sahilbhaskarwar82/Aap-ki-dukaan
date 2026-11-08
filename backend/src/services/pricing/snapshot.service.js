@@ -225,8 +225,15 @@ export const approvePriceSnapshot = async (
   if (allApproved) {
     const pool = await GroupBuyPool.findById(poolId).session(session);
     if (pool && ["MOQ_REACHED", "AWAITING_APPROVALS", "UNDER_MOQ_DECISION_PENDING"].includes(pool.state)) {
-      pool.state = "AWAITING_PAYMENT";
+      pool.state = "FUNDED";
       await pool.save(opts);
+
+      try {
+        const { createFinalOrderFromFundedPool } = await import("../orders/order.service.js");
+        await createFinalOrderFromFundedPool(pool._id, session);
+      } catch (ordErr) {
+        console.warn("Direct order processing notice on allApproved:", ordErr.message);
+      }
     }
   }
 

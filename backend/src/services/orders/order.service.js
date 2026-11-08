@@ -799,7 +799,7 @@ export async function updateSupplierSettlement(orderId, updates = {}, requesting
  * @param {mongoose.ClientSession} [session]
  * @returns {Promise<mongoose.Document>}
  */
-export async function createFinalOrderFromFundedPool(poolId, session = null) {
+export async function createFinalOrderFromFundedPool(poolId, session = null, options = {}) {
   if (!poolId) {
     throw new ApiError(400, "poolId is required to create final order.");
   }
@@ -963,10 +963,11 @@ export async function createFinalOrderFromFundedPool(poolId, session = null) {
         shippingTotalMinor,
         grandTotalMinor,
         memberOrders,
-        supplierConfirmationStatus: "PENDING",
-        supplierReference: null,
+        supplierConfirmationStatus: (options && options.supplierConfirmationStatus) || "CONFIRMED",
+        supplierReference: (options && options.supplierReference) || `AUTO-MFG-${orderNumber}`,
         isSimulatedConfirmation: true,
-        orderState: "AWAITING_SUPPLIER_CONFIRMATION",
+        confirmedAt: new Date(),
+        orderState: (options && options.orderState) || "PROCESSING",
       },
     ],
     session ? { session } : {}
@@ -1015,7 +1016,7 @@ export async function createFinalOrderFromFundedPool(poolId, session = null) {
         shopId: contrib.shopId?._id || contrib.shopId,
         type: "ORDER_STATUS_UPDATED",
         title: "Order Finalized",
-        message: `Bulk Purchase Order ${order.orderNumber} has been finalized and submitted to the supplier for confirmation.`,
+        message: `Bulk Purchase Order ${order.orderNumber} has been finalized and directly processed for manufacturing & fulfillment.`,
         linkUrl: `/orders/${order._id}`,
         relatedPoolId: pool._id,
         relatedOrderId: order._id,

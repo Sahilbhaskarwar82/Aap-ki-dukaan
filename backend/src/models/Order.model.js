@@ -149,7 +149,7 @@ const orderSchema = new mongoose.Schema(
     supplierConfirmationStatus: {
       type: String,
       enum: ["PENDING", "CONFIRMED", "REJECTED"],
-      default: "PENDING",
+      default: "CONFIRMED",
       required: true,
     },
     supplierReference: {
@@ -182,7 +182,7 @@ const orderSchema = new mongoose.Schema(
         "CANCELLED",
         "EXCEPTION",
       ],
-      default: "AWAITING_SUPPLIER_CONFIRMATION",
+      default: "PROCESSING",
       required: true,
       index: true,
     },

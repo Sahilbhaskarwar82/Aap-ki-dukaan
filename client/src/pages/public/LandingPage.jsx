@@ -552,17 +552,22 @@ export function LandingPage({
         method: isPayPal ? 'PayPal Smart Buttons (Sandbox)' : '1-Click Fast Sandbox Pay',
       });
 
+      const isQueueComplete = (selectedPoolForJoin.pooledQuantity + addedQty) >= (selectedPoolForJoin.moq || 60);
+
       toast.success(
-        `Order placed & recorded in MongoDB! Joined ${poolTitle} for ${addedQty} ${poolUnit} (₹${calculatedCost}). Pool progress updated!`,
+        isQueueComplete
+          ? `🎉 Queue complete! Wholesaler MOQ reached. Bulk order directly processed & sent to manufacturing for ${poolTitle}!`
+          : `Order placed & recorded in MongoDB! Joined ${poolTitle} for ${addedQty} ${poolUnit} (₹${calculatedCost}). Pool progress updated!`,
         {
-          duration: 5000,
+          duration: 6000,
           action: {
-            label: 'View Group Buys',
+            label: isQueueComplete ? 'View Orders' : 'View Group Buys',
             onClick: () => {
+              const targetRoute = isQueueComplete ? '/orders' : '/group-buys';
               if (typeof onNavigate === 'function') {
-                onNavigate('/group-buys');
+                onNavigate(targetRoute);
               } else if (typeof window !== 'undefined') {
-                window.location.href = '/group-buys';
+                window.location.href = targetRoute;
               }
             },
           },

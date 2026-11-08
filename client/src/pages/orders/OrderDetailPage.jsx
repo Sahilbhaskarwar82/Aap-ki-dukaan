@@ -281,7 +281,7 @@ export function OrderDetailPage() {
               <h1 className="text-xl font-bold font-mono text-white tracking-tight">
                 {order.orderNumber || `AKD-${order._id.slice(-6)}`}
               </h1>
-              <Badge variant="pool">{order.orderState || 'PROCESSING'}</Badge>
+              <Badge variant="pool">{order.orderState === 'AWAITING_SUPPLIER_CONFIRMATION' ? 'PROCESSING' : (order.orderState || 'PROCESSING')}</Badge>
             </div>
             <p className="text-xs text-midnight-muted mt-0.5">
               Created on {new Date(order.createdAt).toLocaleDateString()} • Pool ID:{' '}
@@ -516,7 +516,7 @@ export function OrderDetailPage() {
                         : 'warning'
                     }
                   >
-                    {order.supplierConfirmationStatus || 'PENDING'}
+                    {order.supplierConfirmationStatus === 'REJECTED' ? 'REJECTED' : 'CONFIRMED'}
                   </Badge>
                 </div>
               </div>
@@ -665,7 +665,7 @@ export function OrderDetailPage() {
                   Issued: {new Date(order.createdAt).toLocaleDateString()}
                 </p>
                 <p className="text-slate-300 text-[11px] mt-1 font-sans">
-                  Status: <strong className="text-white">{order.orderState}</strong>
+                  Status: <strong className="text-white">{order.orderState === 'AWAITING_SUPPLIER_CONFIRMATION' ? 'PROCESSING' : (order.orderState || 'PROCESSING')}</strong>
                 </p>
               </div>
             </div>

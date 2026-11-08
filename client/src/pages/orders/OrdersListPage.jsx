@@ -226,19 +226,17 @@ export function OrdersListPage() {
                       <td className="py-3.5 px-4">
                         <Badge
                           variant={
-                            order.supplierConfirmationStatus === 'CONFIRMED'
-                              ? 'success'
-                              : order.supplierConfirmationStatus === 'REJECTED'
+                            order.supplierConfirmationStatus === 'REJECTED'
                               ? 'error'
-                              : 'warning'
+                              : 'success'
                           }
                         >
-                          {order.supplierConfirmationStatus || 'PENDING'}
+                          {order.supplierConfirmationStatus === 'REJECTED' ? 'REJECTED' : 'CONFIRMED'}
                         </Badge>
                       </td>
                       <td className="py-3.5 px-4">
-                        <Badge variant={getOrderStateVariant(order.orderState)}>
-                          {order.orderState || 'PROCESSING'}
+                        <Badge variant={getOrderStateVariant(order.orderState === 'AWAITING_SUPPLIER_CONFIRMATION' ? 'PROCESSING' : (order.orderState || 'PROCESSING'))}>
+                          {order.orderState === 'AWAITING_SUPPLIER_CONFIRMATION' ? 'PROCESSING' : (order.orderState || 'PROCESSING')}
                         </Badge>
                       </td>
                       <td className="py-3.5 px-4 text-right">

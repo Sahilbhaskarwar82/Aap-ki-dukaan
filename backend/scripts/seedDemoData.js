@@ -1386,6 +1386,7 @@ async function seedMasterData() {
     cupOrder.supplierConfirmationStatus = 'CONFIRMED';
     cupOrder.supplierReference = 'BART-ORD-2026-001';
     cupOrder.confirmedAt = new Date();
+    cupOrder.orderState = 'PROCESSING';
     await cupOrder.save();
 
     await SupplierSettlement.findOneAndUpdate(
