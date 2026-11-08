@@ -27,9 +27,11 @@ const router = Router();
 
 // Dedicated sub-routers for top-level /api/products and /api/offers mounting
 export const productRouter = Router();
+productRouter.get("/", searchProducts);
 productRouter.get("/search", searchProducts);
 
 export const offerRouter = Router();
+offerRouter.get("/", searchOffers);
 offerRouter.get("/search", searchOffers);
 offerRouter.post("/compare", compareOffers);
 

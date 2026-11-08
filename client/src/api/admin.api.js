@@ -277,7 +277,27 @@ export async function searchOffersForAdmin(params = {}) {
   return unwrap(res, { offers: [], pagination: { totalCount: 0, page: 1, limit: 50, totalPages: 1 } });
 }
 
+
+/**
+ * Query immutable AIExecutionLog records with filters.
+ *
+ * GET /api/admin/ai-logs
+ *
+ * @param {object} [params={}]
+ * @returns {Promise<{ aiLogs: Array<object>, total: number, page: number, limit: number, pages: number }>}
+ */
+export async function getAILogs(params = {}) {
+  const query = {
+    page: 1,
+    limit: 50,
+    ...params,
+  };
+  const res = await axiosClient.get('/admin/ai-logs', { params: query });
+  return unwrap(res, { aiLogs: [], total: 0, page: 1, limit: 50, pages: 1 });
+}
+
 export const adminApi = {
+  getAILogs,
   getReconciliationDashboard,
   annotatePayment,
   getAuditLogs,

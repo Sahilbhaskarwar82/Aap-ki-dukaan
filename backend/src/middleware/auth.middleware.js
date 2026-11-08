@@ -10,6 +10,9 @@ import { asyncHandler } from "../utils/asyncHandler.js";
  * Checks accessToken or token in cookies, or Authorization header Bearer token.
  */
 export const verifyJWT = asyncHandler(async (req, res, next) => {
+  if (req.user) {
+    return next();
+  }
   try {
     const token =
       req.cookies?.accessToken ||

@@ -27,7 +27,7 @@ import {
 
 import { useAuth } from '@/context/AuthContext';
 import { useNotifications } from '@/context/NotificationContext';
-import { getAuditLogs } from '@/api/admin.api';
+import { getAuditLogs, getAILogs } from '@/api/admin.api';
 
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -84,6 +84,9 @@ export function AdminAuditLogsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [logs, setLogs] = useState([]);
+  const [activeLogTab, setActiveLogTab] = useState('AUDIT_LOGS'); // 'AUDIT_LOGS' | 'AI_TRACES'
+  const [aiLogs, setAiLogs] = useState([]);
+  const [aiPagination, setAiPagination] = useState({ total: 0, page: 1, limit: 25, pages: 1 });
   const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 25, pages: 1 });
 
   // Filter States
@@ -132,9 +135,35 @@ export function AdminAuditLogsPage() {
     }
   }, [currentPage, correlationId, action, resourceType, actorRole, poolId, orderId]);
 
+
+  const fetchAiLogs = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const params = { page: currentPage, limit: 25 };
+      if (correlationId.trim()) params.correlationId = correlationId.trim();
+      const data = await getAILogs(params);
+      setAiLogs(data.aiLogs || []);
+      setAiPagination({
+        total: data.total || 0,
+        page: data.page || 1,
+        limit: data.limit || 25,
+        pages: data.pages || 1,
+      });
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.message || 'Failed to retrieve AI execution logs.');
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, correlationId]);
+
   useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs]);
+    if (activeLogTab === "AI_TRACES") {
+      fetchAiLogs();
+    } else {
+      fetchLogs();
+    }
+  }, [activeLogTab, fetchLogs, fetchAiLogs]);
 
   const handleOpenMetadata = (log) => {
     setSelectedLog(log);
@@ -233,6 +262,36 @@ export function AdminAuditLogsPage() {
           </AlertDescription>
         </Alert>
       )}
+
+      
+      {/* ── Log Category Tabs (Audit vs AI Traces) ── */}
+      <div className="flex items-center gap-2 border-b border-midnight-border pb-2 text-xs">
+        <button
+          type="button"
+          onClick={() => { setActiveLogTab('AUDIT_LOGS'); setCurrentPage(1); }}
+          className={`px-3 py-2 rounded-lg font-medium transition-colors flex items-center gap-1.5 ${
+            activeLogTab === 'AUDIT_LOGS'
+              ? 'bg-cyan-950/60 text-cyan-300 border border-cyan-800/60'
+              : 'text-midnight-muted hover:text-white'
+          }`}
+        >
+          <FileText className="h-3.5 w-3.5" />
+          Audit Trail Records ({pagination.total || logs.length})
+        </button>
+
+        <button
+          type="button"
+          onClick={() => { setActiveLogTab('AI_TRACES'); setCurrentPage(1); }}
+          className={`px-3 py-2 rounded-lg font-medium transition-colors flex items-center gap-1.5 ${
+            activeLogTab === 'AI_TRACES'
+              ? 'bg-teal-950/60 text-teal-300 border border-teal-800/60'
+              : 'text-midnight-muted hover:text-white'
+          }`}
+        >
+          <Cpu className="h-3.5 w-3.5" />
+          AI Execution Traces ({aiPagination.total || aiLogs.length})
+        </button>
+      </div>
 
       {/* ── Filter Controls ── */}
       <div className="bg-midnight-card border border-midnight-border rounded-xl p-3.5 space-y-3">

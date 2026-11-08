@@ -19,11 +19,18 @@ test.describe('SUJ-10: Under-MOQ Lifecycle & Automated Refunds Verification', ()
       data: {
         email: 'admin@example.com',
         password: 'Password123!',
+        otp: '123456',
       },
     });
     expect(adminLoginRes.ok()).toBeTruthy();
     const adminAuth = await adminLoginRes.json();
     const adminToken = adminAuth.data?.token;
+
+    await request.post('http://localhost:8000/api/admin/reset-under-moq-pool', {
+      headers: {
+        Authorization: `Bearer ${adminToken}`,
+      },
+    });
 
     // Trigger lifecycle check with 73-hour clock offset
     const lifecycleRes = await request.post('http://localhost:8000/api/admin/jobs/run-lifecycle-check', {
@@ -82,16 +89,13 @@ test.describe('SUJ-10: Under-MOQ Lifecycle & Automated Refunds Verification', ()
     await expect(proceedBtn).toBeVisible({ timeout: 10000 });
     await expect(cancelRefundBtn).toBeVisible({ timeout: 10000 });
 
-    // Click Cancel & Request Full Refund
+    // Click Cancel & Request Full Refund and wait for backend confirmation
+    const decisionPromise = page.waitForResponse(
+      (resp) => resp.url().includes('/decision') && resp.status() === 200,
+      { timeout: 15000 }
+    );
     await cancelRefundBtn.click();
-
-    // Confirm cancel in dialog if modal confirmation exists
-    const confirmCancelBtn = page.locator('button:has-text("Confirm Cancel"), button:has-text("Yes, Cancel")');
-    if (await confirmCancelBtn.isVisible({ timeout: 3000 })) {
-      await confirmCancelBtn.click();
-    }
-
-    await page.waitForTimeout(1000);
+    await decisionPromise;
 
     // ── 6. Verify Automated 100% Refund Creation in /refunds ───────────────────
     await page.goto('/refunds');
@@ -109,5 +113,11 @@ test.describe('SUJ-10: Under-MOQ Lifecycle & Automated Refunds Verification', ()
     await expect(page.locator('[data-testid="refunds-table"]')).toContainText(
       /Under-MOQ|UNDER_MOQ_BUYER_CANCEL|COMPLETED|PROCESSING/i
     );
+
+    // ── 7. Reset Server Clock to Real-Time ─────────────────────────────────────
+    await request.post('http://localhost:8000/api/admin/jobs/run-lifecycle-check', {
+      headers: { Authorization: `Bearer ${adminToken}` },
+      data: { offsetHours: 0 },
+    });
   });
 });

@@ -157,7 +157,8 @@ export function GroupBuyMarketplacePage() {
   const availableCategories = useMemo(() => {
     const cats = new Set();
     pools.forEach((p) => {
-      const prod = productMap[p.productId];
+      const prodId = p.productId?._id || p.productId;
+      const prod = (typeof p.productId === 'object' && p.productId !== null ? p.productId : productMap[prodId]) || productMap[prodId];
       if (prod?.category) {
         cats.add(prod.category.toUpperCase().trim());
       }
@@ -188,7 +189,8 @@ export function GroupBuyMarketplacePage() {
 
       // 3. Category Filter (Accurate lookup from Product Catalogue)
       if (categoryFilter !== 'ALL') {
-        const prod = productMap[pool.productId];
+        const prodId = pool.productId?._id || pool.productId;
+        const prod = (typeof pool.productId === 'object' && pool.productId !== null ? pool.productId : productMap[prodId]) || productMap[prodId];
         const poolCat = (prod?.category || '').toUpperCase().trim();
         if (poolCat !== categoryFilter.toUpperCase().trim()) return false;
       }
@@ -197,7 +199,8 @@ export function GroupBuyMarketplacePage() {
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase().trim();
         const titleMatch = (pool.title || '').toLowerCase().includes(query);
-        const prod = productMap[pool.productId];
+        const prodId = pool.productId?._id || pool.productId;
+        const prod = (typeof pool.productId === 'object' && pool.productId !== null ? pool.productId : productMap[prodId]) || productMap[prodId];
         const prodNameMatch = (prod?.canonicalName || '').toLowerCase().includes(query);
         const areaMatch = (pool.deliveryArea || '').toLowerCase().includes(query);
         if (!titleMatch && !prodNameMatch && !areaMatch) return false;
@@ -402,7 +405,8 @@ export function GroupBuyMarketplacePage() {
       {!loading && !error && filteredPools.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredPools.map((pool) => {
-            const product = productMap[pool.productId];
+            const prodId = pool.productId?._id || pool.productId;
+            const product = (typeof pool.productId === 'object' && pool.productId !== null ? pool.productId : productMap[prodId]) || productMap[prodId];
             const stateConfig = POOL_STATE_CONFIG[pool.state] || {
               label: pool.state,
               variant: 'neutral',

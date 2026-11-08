@@ -7,7 +7,9 @@ import {
   getReconciliationDashboard,
   annotatePayment,
   getAuditLogs,
+  getAILogs,
   runLifecycleCheck,
+  resetUnderMoqPool,
 } from "../controllers/admin.controller.js";
 import { verifyJWT, verifyRole } from "../middleware/auth.middleware.js";
 import { ApiError } from "../utils/apiError.js";
@@ -97,11 +99,13 @@ router.post(
  * Queries immutable audit trail records with filters and pagination (Admin & Reviewer).
  */
 router.get("/audit-logs", authGuard, requireAdminOrReviewer, getAuditLogs);
+router.get("/ai-logs", authGuard, requireAdminOrReviewer, getAILogs);
 
 /**
  * POST /api/admin/jobs/run-lifecycle-check
  * Evaluates 72h pool deadlines and 24h decision cutoffs (Admin only).
  */
 router.post("/jobs/run-lifecycle-check", authGuard, requireAdmin, runLifecycleCheck);
+router.post("/reset-under-moq-pool", authGuard, requireAdmin, resetUnderMoqPool);
 
 export default router;

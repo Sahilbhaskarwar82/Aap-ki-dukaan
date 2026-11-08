@@ -8,6 +8,7 @@ import { GroupBuyPool } from "../models/GroupBuyPool.model.js";
 import { Quote } from "../models/Quote.model.js";
 import { Payment } from "../models/Payment.model.js";
 import { Refund } from "../models/Refund.model.js";
+import { Contribution } from "../models/Contribution.model.js";
 import { AuditLog } from "../models/AuditLog.model.js";
 import { AIExecutionLog } from "../models/AIExecutionLog.model.js";
 import { reconcilePaymentState } from "../services/payments/payment.service.js";
@@ -519,6 +520,50 @@ export const getAuditLogs = asyncHandler(async (req, res) => {
  * Triggers 72h pool deadline and 24h decision cutoff evaluator.
  * Supports test clock time travel in development/test.
  */
+
+/**
+ * GET /api/admin/ai-logs
+ * Queries immutable AIExecutionLog records with filtering and pagination.
+ */
+export const getAILogs = asyncHandler(async (req, res) => {
+  const {
+    correlationId,
+    operation,
+    status,
+    page = 1,
+    limit = 50,
+  } = req.query;
+
+  const filter = {};
+  if (correlationId) filter.correlationId = correlationId.trim();
+  if (operation) filter.operation = operation.trim().toUpperCase();
+  if (status) filter.status = status.trim().toUpperCase();
+
+  const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+  const limitNum = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 100);
+
+  const total = await AIExecutionLog.countDocuments(filter);
+  const aiLogs = await AIExecutionLog.find(filter)
+    .sort({ createdAt: -1 })
+    .skip((pageNum - 1) * limitNum)
+    .limit(limitNum)
+    .lean();
+
+  return res.status(200).json(
+    new APIResponse(
+      200,
+      {
+        aiLogs,
+        total,
+        page: pageNum,
+        limit: limitNum,
+        pages: Math.ceil(total / limitNum) || 1,
+      },
+      "AI execution logs retrieved successfully."
+    )
+  );
+});
+
 export const runLifecycleCheck = asyncHandler(async (req, res) => {
   const { offsetMinutes, offsetHours, targetDate } = req.body || {};
 
@@ -582,3 +627,24 @@ export const runLifecycleCheck = asyncHandler(async (req, res) => {
   );
 });
 
+
+export const resetUnderMoqPool = asyncHandler(async (_req, res) => {
+  const pool = await GroupBuyPool.findOne({ title: "Lucknow Premium Rice Pool (Under-MOQ Resolution)" });
+  if (pool) {
+    clockService.reset();
+    pool.state = "UNDER_MOQ_DECISION_PENDING";
+    pool.lockReason = "EXPIRED_72H_UNDER_MOQ";
+    pool.decisionDeadline = new Date(Date.now() + 100 * 3600000);
+    await pool.save();
+    await Contribution.updateMany(
+      { poolId: pool._id },
+      { $set: { state: "ACTIVE", underMoqDecision: "PENDING", totalRefundedMinor: 0 } }
+    );
+    await Payment.updateMany(
+      { poolId: pool._id },
+      { $set: { paymentStatus: "PAID", status: "PAID" } }
+    );
+    await Refund.deleteMany({ poolId: pool._id });
+  }
+  return res.status(200).json(new APIResponse(200, { reset: true }, "Under-MOQ pool reset."));
+});

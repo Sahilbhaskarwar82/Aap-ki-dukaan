@@ -72,7 +72,13 @@ export const listPools = async (filters = {}) => {
   if (filters.deliveryArea) query.deliveryArea = filters.deliveryArea;
   if (filters.productId) query.productId = filters.productId;
 
-  return await GroupBuyPool.find(query).sort({ createdAt: -1 });
+  return await GroupBuyPool.find(query)
+    .populate("productId")
+    .populate({
+      path: "supplierOfferId",
+      populate: { path: "supplierId" },
+    })
+    .sort({ createdAt: -1 });
 };
 
 /**
