@@ -68,6 +68,7 @@ import { AlertCircle } from 'lucide-react';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { NotificationProvider } from '@/context/NotificationContext';
 import { Toaster } from '@/components/ui/Toast';
+import KiranaChatbot from '@/components/common/KiranaChatbot';
 import { Button } from '@/components/ui/Button';
 
 // Public & Auth Pages
@@ -585,6 +586,7 @@ export default function App() {
         <NotificationProvider>
           <Toaster />
           <AppRoutes />
+          <KiranaChatbot />
         </NotificationProvider>
       </AuthProvider>
     </BrowserRouter>

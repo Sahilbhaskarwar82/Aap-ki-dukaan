@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { LandingPage } from '@/pages/public/LandingPage';
 
 describe('HIM-03: Marketplace Landing Page', () => {
-  it('renders marketplace navigation, branding, search bar and hero banner', () => {
+  it('renders marketplace navigation, branding, search bar and category showcase', () => {
     render(<LandingPage />);
 
     // Brand and subtitle (header and footer)
@@ -15,15 +15,12 @@ describe('HIM-03: Marketplace Landing Page', () => {
     // Delivery location
     expect(screen.getByText('Lucknow 226001')).toBeInTheDocument();
 
-    // Hero title
+    // Main heading (Categories at start)
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
-      /WHOLESALE PRICES/i
+      /Shop Wholesale Categories/i
     );
 
-    // CTAs
-    expect(
-      screen.getByRole('button', { name: /explore active group buys/i })
-    ).toBeInTheDocument();
+    // Header CTA
     expect(
       screen.getAllByRole('button', { name: /how.*works/i })[0]
     ).toBeInTheDocument();
@@ -90,7 +87,7 @@ describe('HIM-03: Marketplace Landing Page', () => {
 
     // Wait for modal content
     expect(
-      screen.getByText(/CoBuy AI Engine: Collective Buying Architecture/i)
+      screen.getByText(/Collective Buying Architecture & Group Pricing/i)
     ).toBeInTheDocument();
 
     // Verify default calculator values:
@@ -116,18 +113,6 @@ describe('HIM-03: Marketplace Landing Page', () => {
     expect(screen.getByText(/200 units \(20%\)/i)).toBeInTheDocument();
     expect(screen.getByText(/10 units \(1%\)/i)).toBeInTheDocument();
     expect(screen.getByText(/200 units • Valid/i)).toBeInTheDocument();
-
-    // Verify AI Extraction tab
-    const aiTab = screen.getByRole('tab', { name: /ai extraction demo/i });
-    await user.click(aiTab);
-    expect(
-      screen.getByText(
-        /"We need 25 boxes of 12-ounce food-safe paper cups for our café."/i
-      )
-    ).toBeInTheDocument();
-    expect(screen.getAllByText('Paper Cups').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('25 boxes').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('12 oz')).toBeInTheDocument();
 
     // Verify Timeline tab
     const timelineTab = screen.getByRole('tab', { name: /72h pool timeline/i });

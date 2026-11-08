@@ -297,9 +297,7 @@ export function BuyerDashboardPage() {
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
-          <Button variant="primary" size="sm" onClick={() => navigate('/requirements/new')}>
-            <Plus className="h-4 w-4 mr-1" /> New Requirement
-          </Button>
+          <Button variant="primary" size="sm" onClick={() => navigate("/group-buys")}><Users className="h-4 w-4 mr-1" /> Join Group Buy</Button>
           <Button variant="outline" size="sm" onClick={() => navigate('/group-buys')}>
             <Search className="h-4 w-4 mr-1" /> Browse Pools
           </Button>

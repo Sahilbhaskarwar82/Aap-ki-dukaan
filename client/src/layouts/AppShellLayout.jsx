@@ -46,7 +46,6 @@ export const ROLE_NAVIGATION = {
   SHOP_OWNER: [
     { label: 'Marketplace',         path: '/',              icon: ShoppingBag },
     { label: 'Dashboard',           path: '/dashboard',     icon: LayoutDashboard },
-    { label: 'Requirements',        path: '/requirements',  icon: FileText },
     { label: 'Supplier Catalogue',  path: '/suppliers',     icon: Store },
     { label: 'Group Buys',          path: '/group-buys',    icon: Users },
     { label: 'Orders',              path: '/orders',        icon: Package },

@@ -92,13 +92,13 @@ function setupShell({ user = mockShopOwner, shop = mockShop, logout = vi.fn() } 
 
 // ── 1. Role-Based Navigation Item Logic ────────────────────────────────────────
 describe('HIM-05: getNavItemsForRole()', () => {
-  it('returns 9 navigation items for SHOP_OWNER including Marketplace', () => {
+  it('returns 8 navigation items for SHOP_OWNER including Marketplace', () => {
     const items = getNavItemsForRole('SHOP_OWNER');
-    expect(items.length).toBe(9);
+    expect(items.length).toBe(8);
     const labels = items.map((i) => i.label);
     expect(labels).toContain('Marketplace');
     expect(labels).toContain('Dashboard');
-    expect(labels).toContain('Requirements');
+    expect(labels).not.toContain('Requirements');
     expect(labels).toContain('Supplier Catalogue');
     expect(labels).toContain('Group Buys');
     expect(labels).toContain('Orders');
@@ -176,7 +176,7 @@ describe('HIM-05: AppShellLayout rendering', () => {
     setupShell({ user: mockShopOwner });
     render(<AppShellLayout><div>Page</div></AppShellLayout>);
     const sidebar = screen.getByLabelText('Sidebar navigation');
-    expect(sidebar).toHaveTextContent('Requirements');
+    expect(sidebar).not.toHaveTextContent('Requirements');
     expect(sidebar).toHaveTextContent('Group Buys');
     expect(sidebar).toHaveTextContent('Supplier Catalogue');
     expect(sidebar).not.toHaveTextContent('Supplier Portal');
@@ -194,14 +194,14 @@ describe('HIM-05: AppShellLayout rendering', () => {
   it('marks active navigation link with aria-current="page"', () => {
     setupShell({ user: mockShopOwner });
     render(
-      <AppShellLayout currentPath="/requirements">
+      <AppShellLayout currentPath="/group-buys">
         <div>Requirements Page</div>
       </AppShellLayout>
     );
-    const activeBtn = screen.getByRole('button', { name: /requirements/i });
+    const activeBtn = screen.getByRole('button', { name: /group buys/i });
     expect(activeBtn).toHaveAttribute('aria-current', 'page');
 
-    const inactiveBtn = screen.getByRole('button', { name: /group buys/i });
+    const inactiveBtn = screen.getByRole('button', { name: /dashboard/i });
     expect(inactiveBtn).not.toHaveAttribute('aria-current');
   });
 

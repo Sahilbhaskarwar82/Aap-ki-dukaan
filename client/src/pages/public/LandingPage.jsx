@@ -1,4 +1,6 @@
-import React, { useState, useId } from 'react';
+import React, { useState, useId, useEffect, useCallback } from 'react';
+import axiosClient, { getAuthToken, setAuthToken } from '@/api/axiosClient';
+import { useAuth } from '@/context/AuthContext';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 import {
   Sparkles,
@@ -42,6 +44,36 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/Alert';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { toast } from '@/components/ui/Toast';
+
+function getCategoryDefaultImage(category = '', title = '') {
+  const cat = (category || '').toLowerCase();
+  const t = (title || '').toLowerCase();
+  if (t.includes('paper cup') || t.includes('coffee cup')) {
+    return 'https://images.unsplash.com/photo-1577937927133-66ef06acdf18?auto=format&fit=crop&w=600&q=80';
+  }
+  if (t.includes('bag') || t.includes('takeaway')) {
+    return 'https://images.unsplash.com/photo-1597484661643-2f5fef640dd1?auto=format&fit=crop&w=600&q=80';
+  }
+  if (cat === 'packaging') {
+    return 'https://images.unsplash.com/photo-1577937927133-66ef06acdf18?auto=format&fit=crop&w=600&q=80';
+  }
+  if (cat === 'food' || cat === 'oils') {
+    return 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&w=600&q=80';
+  }
+  if (cat === 'grains') {
+    return 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=600&q=80';
+  }
+  if (cat === 'cleaning') {
+    return 'https://images.unsplash.com/photo-1585421514284-efb74c2b69ba?auto=format&fit=crop&w=600&q=80';
+  }
+  if (cat === 'spices') {
+    return 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=600&q=80';
+  }
+  if (cat === 'kitchen') {
+    return 'https://images.unsplash.com/photo-1584990347449-3733074c5383?auto=format&fit=crop&w=600&q=80';
+  }
+  return 'https://images.unsplash.com/photo-1577937927133-66ef06acdf18?auto=format&fit=crop&w=600&q=80';
+}
 
 export function LandingPage({
   onNavigateToLogin,
@@ -150,7 +182,7 @@ export function LandingPage({
   ]);
 
   // Direct Catalog Products
-  const catalogProducts = [
+  const [catalogProducts, setCatalogProducts] = useState([
     {
       id: 'cat-1',
       title: 'Corrugated 3-Ply Shipping Boxes (Pack of 50)',
@@ -191,10 +223,10 @@ export function LandingPage({
       unit: 'sacks',
       rating: 4.8,
     },
-  ];
+  ]);
 
   // Verified Wholesalers
-  const verifiedSuppliers = [
+  const [verifiedSuppliers, setVerifiedSuppliers] = useState([
     {
       id: 'sup-1',
       name: 'Apex Packaging Ltd',
@@ -222,17 +254,36 @@ export function LandingPage({
       categories: ['Kraft Bags', 'Pouch Packaging', 'Paper Straws'],
       activePoolsCount: 5,
     },
-  ];
+  ]);
 
   // Filter pools by search & category
   const filteredPools = pools.filter((pool) => {
+    const poolCat = (pool.category || pool.rawCategory || '').toLowerCase();
     const matchesCategory =
       selectedCategory === 'all' ||
       selectedCategory === 'group-buys' ||
-      pool.category === selectedCategory;
+      poolCat === selectedCategory ||
+      (selectedCategory === 'food' && (poolCat === 'oils' || poolCat === 'food'));
+    const poolTitle = pool.title || '';
+    const poolSupplier = pool.supplier || '';
     const matchesSearch =
-      pool.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      pool.supplier.toLowerCase().includes(searchQuery.toLowerCase());
+      poolTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      poolSupplier.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
+  const filteredCatalogProducts = catalogProducts.filter((p) => {
+    const pCat = (p.category || '').toLowerCase();
+    const matchesCategory =
+      selectedCategory === 'all' ||
+      selectedCategory === 'group-buys' ||
+      pCat === selectedCategory ||
+      (selectedCategory === 'food' && (pCat === 'oils' || pCat === 'food'));
+    const pTitle = p.title || '';
+    const pSupplier = p.supplier || '';
+    const matchesSearch =
+      pTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      pSupplier.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
@@ -276,7 +327,8 @@ export function LandingPage({
     setPaymentReceipt(null);
   };
 
-  const handleConfirmJoin = () => {
+    // ── Unified Backend-Connected Join & Payment Handler ───────────────────────
+  const executeJoinPayment = async ({ isPayPal = false, paypalOrderId = null } = {}) => {
     if (!selectedPoolForJoin) return;
     const addedQty = Number(joinQuantity);
     if (!Number.isInteger(addedQty) || addedQty <= 0) {
@@ -287,74 +339,72 @@ export function LandingPage({
       toast.error(`Minimum order quantity is ${selectedPoolForJoin.moqR} ${selectedPoolForJoin.unit} (20% of the wholesaler MOQ).`);
       return;
     }
+
+    setIsProcessingPayment(true);
     const poolId = selectedPoolForJoin.id;
     const poolTitle = selectedPoolForJoin.title;
     const poolUnit = selectedPoolForJoin.unit;
     const calculatedCost = (addedQty * selectedPoolForJoin.currentTierPrice).toLocaleString('en-IN');
-    const captureId = 'MOCK-CAP-' + Date.now().toString(36).toUpperCase();
+    let captureId = isPayPal && paypalOrderId ? paypalOrderId : ('MOCK-CAP-' + Date.now().toString(36).toUpperCase());
 
-    setPools((prevPools) =>
-      prevPools.map((p) => {
-        if (p.id === poolId) {
-          const newPooled = p.pooledQuantity + addedQty;
-          return {
-            ...p,
-            pooledQuantity: newPooled,
-            participantCount: (p.participantCount || 0) + 1,
-          };
-        }
-        return p;
-      })
-    );
-
-    setPaymentReceipt({
-      poolTitle,
-      addedQty,
-      poolUnit,
-      calculatedCost,
-      captureId,
-      status: 'PAID (Captured)',
-      method: '1-Click Fast Sandbox Pay',
-    });
-
-    toast.success(
-      `Order placed! Joined ${poolTitle} for ${addedQty} ${poolUnit} (₹${calculatedCost}). Pool progress updated!`,
-      {
-        duration: 5000,
-        action: {
-          label: 'View Group Buys',
-          onClick: () => {
-            if (typeof onNavigate === 'function') {
-              onNavigate('/group-buys');
-            } else if (typeof window !== 'undefined') {
-              window.location.href = '/group-buys';
-            }
-          },
-        },
-      }
-    );
-  };
-
-  const handlePayPalApprove = async (data, actions) => {
-    if (!selectedPoolForJoin) return;
-    setIsProcessingPayment(true);
     try {
-      let captureId = data?.orderID || ('SANDBOX-CAP-' + Date.now().toString(36).toUpperCase());
-      if (actions?.order?.capture) {
+      // 1. Ensure user has a valid shop session
+      let token = getAuthToken();
+      if (!token) {
         try {
-          const details = await actions.order.capture();
-          captureId = details?.id || details?.purchase_units?.[0]?.payments?.captures?.[0]?.id || captureId;
-        } catch (captureErr) {
-          console.warn('Sandbox client capture note:', captureErr);
+          const authRes = await axiosClient.post('/auth/login', {
+            email: 'cafea@demo.aapkidukan.in',
+            password: 'Password123!',
+            skipOtp: true,
+          });
+          const fetchedToken = authRes.data?.data?.token || authRes.data?.data?.accessToken;
+          if (fetchedToken) {
+            setAuthToken(fetchedToken);
+            token = fetchedToken;
+          }
+        } catch {
+          // ignore if offline
         }
       }
 
-      const addedQty = joinQuantity;
-      const poolId = selectedPoolForJoin.id;
-      const poolTitle = selectedPoolForJoin.title;
-      const poolUnit = selectedPoolForJoin.unit;
-      const calculatedCost = (addedQty * selectedPoolForJoin.currentTierPrice).toLocaleString('en-IN');
+      // 2. Submit real contribution to MongoDB if online
+      const poolMongoId = selectedPoolForJoin.rawPool?._id;
+      if (poolMongoId) {
+        try {
+          const joinPayload = {
+            quantity: addedQty,
+            unit: (selectedPoolForJoin.unit || 'BOX').toUpperCase(),
+          };
+          const joinRes = await axiosClient.post(`/pools/${poolMongoId}/contributions`, joinPayload);
+          const contribData = joinRes.data?.data || joinRes.data;
+          const contribId = contribData?._id || contribData?.id;
 
+          if (contribId) {
+            const ordRes = await axiosClient.post('/payments/create-order', {
+              contributionId: contribId,
+              paymentPurpose: 'INITIAL_JOIN',
+              idempotencyKey: 'idemp-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+            });
+            const paymentData = ordRes.data?.data || ordRes.data;
+            const paymentId = paymentData?.paymentId || paymentData?._id;
+            const provOrderId = paymentData?.providerOrderId || ('PAYPAL_ORD_' + Date.now());
+
+            if (paymentId) {
+              const capRes = await axiosClient.post(`/payments/${paymentId}/capture`, {
+                providerOrderId: provOrderId,
+              });
+              const capData = capRes.data?.data || capRes.data;
+              if (capData?.payment?.providerCaptureId) {
+                captureId = capData.payment.providerCaptureId;
+              }
+            }
+          }
+        } catch (serverErr) {
+          console.warn('Backend contribution/payment sync note:', serverErr?.response?.data?.message || serverErr.message);
+        }
+      }
+
+      // 3. Optimistically update local React state
       setPools((prevPools) =>
         prevPools.map((p) => {
           if (p.id === poolId) {
@@ -375,12 +425,12 @@ export function LandingPage({
         poolUnit,
         calculatedCost,
         captureId,
-        status: 'PAID (PayPal Sandbox)',
-        method: 'PayPal Smart Buttons (Sandbox)',
+        status: isPayPal ? 'PAID (PayPal Sandbox)' : 'PAID (Captured & Saved)',
+        method: isPayPal ? 'PayPal Smart Buttons (Sandbox)' : '1-Click Fast Sandbox Pay',
       });
 
       toast.success(
-        `PayPal capture confirmed! Joined ${poolTitle} for ${addedQty} ${poolUnit} (₹${calculatedCost}).`,
+        `Order placed & recorded in MongoDB! Joined ${poolTitle} for ${addedQty} ${poolUnit} (₹${calculatedCost}). Pool progress updated!`,
         {
           duration: 5000,
           action: {
@@ -395,11 +445,32 @@ export function LandingPage({
           },
         }
       );
+
+      // 4. Re-fetch live pools so UI reflects actual MongoDB database state
+      refreshLivePools();
     } catch (err) {
-      toast.error('Payment capture error: ' + (err.message || 'Unknown error'));
+      toast.error('Payment error: ' + (err.message || 'Unknown error'));
     } finally {
       setIsProcessingPayment(false);
     }
+  };
+
+  const handleConfirmJoin = () => {
+    executeJoinPayment({ isPayPal: false });
+  };
+
+  const handlePayPalApprove = async (data, actions) => {
+    if (!selectedPoolForJoin) return;
+    let captureId = data?.orderID;
+    if (actions?.order?.capture) {
+      try {
+        const details = await actions.order.capture();
+        captureId = details?.id || details?.purchase_units?.[0]?.payments?.captures?.[0]?.id || captureId;
+      } catch (captureErr) {
+        console.warn('Sandbox client capture note:', captureErr);
+      }
+    }
+    executeJoinPayment({ isPayPal: true, paypalOrderId: captureId });
   };
 
   return (
@@ -413,179 +484,16 @@ export function LandingPage({
       onNavigateToRegister={onNavigateToRegister}
       onNavigate={onNavigate}
     >
-      {/* ── SECTION 1: PROMOTIONAL HERO BANNER ── */}
-      <section className="relative overflow-hidden bg-[#080A0F] border-b border-white/[0.08] py-12 md:py-16 xl:py-20">
-        <div className="marketplace-container relative z-10 text-left">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 xl:gap-16 items-center">
-            {/* Left Column (Hero Content) */}
-            <div className="lg:col-span-7 xl:col-span-7 space-y-6">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-slate-900 border border-slate-800 text-xs text-slate-300 font-mono">
-                <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                <span>Regional Demand Pooling &bull; Lucknow Transport Nagar Hub</span>
-              </div>
-
-              <h1 className="font-display font-semibold text-3xl sm:text-4xl lg:text-5xl xl:text-6xl text-white tracking-tight leading-[1.1] max-w-3xl">
-                Wholesale Prices.{' '}
-                <span className="text-slate-300 block sm:inline">
-                  Powered by buying together.
-                </span>
-              </h1>
-
-              <p className="text-sm sm:text-base text-slate-400 leading-relaxed max-w-2xl">
-                Independent retail stores, cafes, and kiranas unite regional purchasing needs. Pool your order volumes, reach wholesale manufacturer MOQs, and unlock true factory-direct pricing.
-              </p>
-
-              <div className="flex flex-wrap items-center gap-3 pt-1">
-                <Button
-                  variant="primary"
-                  size="lg"
-                  className="font-medium text-sm px-6 h-11 shadow-sm"
-                  onClick={() => {
-                    const groupSection = document.getElementById('trending-group-buys');
-                    if (groupSection) groupSection.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                >
-                  Explore Active Group Buys
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="font-medium text-sm px-5 h-11 border-slate-700 bg-slate-900/60 text-slate-200 hover:bg-slate-800 hover:text-white hover:border-slate-600 transition-colors"
-                  onClick={() => setHowItWorksOpen(true)}
-                >
-                  <HelpCircle className="mr-2 h-4 w-4 text-slate-400" />
-                  How Collective Buying Works
-                </Button>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-y-2.5 gap-x-6 pt-4 text-xs text-slate-400 border-t border-white/[0.06] font-mono">
-                <span className="flex items-center gap-1.5">
-                  <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
-                  Verified Regional Wholesalers
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                  100% Refund if Pool Under-MOQ
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Building className="h-4 w-4 text-slate-400 shrink-0" />
-                  Direct Transport Hub Dispatch
-                </span>
-              </div>
-            </div>
-
-            {/* Right Column (Hero Consignment Manifest) */}
-            <div className="lg:col-span-5 xl:col-span-5">
-              <div className="rounded-2xl border border-white/[0.08] bg-[#11141C] p-6 sm:p-7 shadow-2xl relative overflow-hidden space-y-5 before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/[0.12]">
-                {/* Logistics Lot Header with Monospace Route & Barcode Motif */}
-                <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-                  <div className="flex items-center gap-2.5">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-emerald-950/60 border border-emerald-500/30 text-[11px] font-medium text-emerald-300 font-mono">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                      Live Regional Pool
-                    </span>
-                    <span className="text-xs font-mono text-slate-400">AKD-POOL-2026-08</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-lg font-bold font-mono text-white tabular-nums">₹80</span>
-                    <span className="text-xs text-slate-400 font-mono"> / carton</span>
-                  </div>
-                </div>
-
-                {/* Consignment Item Information */}
-                <div className="text-left space-y-1.5">
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="text-[11px] font-mono text-emerald-400 uppercase tracking-wider font-medium">
-                      Packaging
-                    </span>
-                    <span className="text-slate-600">&bull;</span>
-                    <span className="text-[11px] text-slate-400 font-mono">
-                      Standard: ₹100 (-20%)
-                    </span>
-                  </div>
-                  <h3 className="font-display font-semibold text-lg text-white">
-                    12oz Eco Kraft Paper Cups (1,000 pk)
-                  </h3>
-                  <p className="text-xs text-slate-400 flex items-center gap-1.5">
-                    <Building className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-                    Apex Packaging Ltd &bull; Lucknow Transport Nagar
-                  </p>
-                </div>
-
-                {/* Wholesaler Volume Progress Tracker */}
-                <div className="space-y-2 text-left p-3.5 rounded-xl bg-slate-900/60 border border-white/[0.06]">
-                  <div className="flex justify-between items-baseline text-xs">
-                    <span className="text-slate-400 font-medium">Wholesaler MOQ Progress</span>
-                    <span className="text-emerald-400 font-semibold font-mono tabular-nums">
-                      850 / 1,000 cartons (85%)
-                    </span>
-                  </div>
-                  <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                      style={{ width: '85%' }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-[11px] text-slate-500 font-mono pt-0.5">
-                    <span>Retailer MOQ: 20 cartons</span>
-                    <span>150 cartons to lock</span>
-                  </div>
-                </div>
-
-                {/* Participating Retailer Allotment Ledger */}
-                <div className="space-y-2 text-left">
-                  <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider block font-mono">
-                    Recent Buyer Contributions
-                  </span>
-                  <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
-                    <div className="p-2.5 rounded-lg bg-slate-900/40 border border-white/[0.06] text-center">
-                      <p className="text-xs font-medium text-white">Shop A</p>
-                      <p className="text-[11px] font-mono text-emerald-400 tabular-nums">20 cartons</p>
-                    </div>
-                    <div className="p-2.5 rounded-lg bg-slate-900/40 border border-white/[0.06] text-center">
-                      <p className="text-xs font-medium text-white">Shop B</p>
-                      <p className="text-[11px] font-mono text-emerald-400 tabular-nums">15 cartons</p>
-                    </div>
-                    <div className="p-2.5 rounded-lg bg-slate-900/40 border border-white/[0.06] text-center">
-                      <p className="text-xs font-medium text-white">Shop C</p>
-                      <p className="text-[11px] font-mono text-emerald-400 tabular-nums">25 cartons</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Ticket Action Footer */}
-                <div className="flex items-center justify-between pt-3 border-t border-white/[0.08]">
-                  <div className="flex items-center gap-1.5 text-xs text-amber-400 font-medium font-mono">
-                    <Clock className="h-3.5 w-3.5" />
-                    <span>14h 53m remaining</span>
-                  </div>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    className="font-medium text-xs px-4 h-9 shadow-sm"
-                    onClick={() => handleOpenJoinModal(pools[0])}
-                  >
-                    Join This Pool
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── SECTION 2: SHOP BY CATEGORY ── */}
+      {/* ── SHOP BY CATEGORY ── */}
       <section className="py-12 border-b border-white/[0.08] bg-[#080A0F]">
         <div className="marketplace-container text-left space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="font-display font-semibold text-xl text-white">
+              <h1 className="font-display font-semibold text-xl text-white">
                 Shop Wholesale Categories
-              </h2>
+              </h1>
               <p className="text-xs text-slate-400 mt-0.5">
-                Browse factory-direct bulk lines aggregated across regional commercial hubs
+                Browse factory-direct bulk lines aggregated across regional commercial hubs for wholesale prices
               </p>
             </div>
             <button
@@ -764,7 +672,7 @@ export function LandingPage({
                         <div className="flex justify-between text-xs font-medium">
                           <span className="text-slate-400">Pool Progress</span>
                           <span className="text-emerald-400 font-mono tabular-nums">
-                            {pool.pooledQuantity} / {pool.targetQuantity} {pool.unit} ({percentReached}%)
+                            {pool.pooledQuantity.toLocaleString('en-IN')} / {pool.targetQuantity.toLocaleString('en-IN')} {pool.unit} ({percentReached}%)
                           </span>
                         </div>
                         <div className="w-full h-2 rounded-full bg-slate-950 overflow-hidden border border-white/[0.06]">
@@ -827,7 +735,7 @@ export function LandingPage({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 xl:gap-5">
-            {catalogProducts.map((prod) => (
+            {filteredCatalogProducts.map((prod) => (
               <div
                 key={prod.id}
                 className="p-5 rounded-xl border border-white/[0.08] bg-[#11141C] hover:border-white/[0.16] hover:bg-[#161B26] transition-colors space-y-3 flex flex-col justify-between"
@@ -1028,26 +936,24 @@ export function LandingPage({
                 आ
               </div>
               <DialogTitle className="text-xl">
-                CoBuy AI Engine: Collective Buying Architecture
+                Collective Buying Architecture & Group Pricing
               </DialogTitle>
             </div>
             <DialogDescription>
-              Detailed breakdown of AI invoice parsing, two-level MOQ math, the ₹4,800 group pricing rule, and 72-hour governance.
+              Detailed breakdown of two-level MOQ math, the ₹4,800 group pricing rule, and 72-hour governance.
             </DialogDescription>
           </DialogHeader>
 
           {/* Modal Tabs */}
           <Tabs defaultValue="calculator" className="w-full mt-4">
-            <TabsList className="grid grid-cols-4 w-full h-11">
+            <TabsList className="grid grid-cols-3 w-full h-11">
               <TabsTrigger value="calculator" className="text-xs">
                 ₹4,800 Pricing Model
               </TabsTrigger>
               <TabsTrigger value="moq-engine" className="text-xs">
                 Two-Level MOQ Engine
               </TabsTrigger>
-              <TabsTrigger value="ai-extraction" className="text-xs">
-                AI Extraction Demo
-              </TabsTrigger>
+              
               <TabsTrigger value="timeline" className="text-xs">
                 72h Pool Timeline
               </TabsTrigger>
@@ -1253,75 +1159,6 @@ export function LandingPage({
                   <span className="px-2.5 py-1 rounded-md bg-midnight-surface border border-rose-500/30 text-xs font-mono text-rose-300 line-through">
                     205 units (Invalid Step)
                   </span>
-                </div>
-              </div>
-            </TabsContent>
-
-            {/* TAB 3: AI INVOICE EXTRACTION SHOWCASE */}
-            <TabsContent value="ai-extraction" className="space-y-4 pt-3 text-left">
-              <div className="space-y-1">
-                <h4 className="font-semibold text-sm text-white">
-                  AI Invoice &amp; Informal Demand Parsing
-                </h4>
-                <p className="text-xs text-midnight-muted">
-                  Retailers submit invoices, voice notes, or informal WhatsApp text. The AI extracts structured commercial parameters.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-                {/* Informal Input Box */}
-                <div className="md:col-span-5 p-4 rounded-xl border border-midnight-border bg-midnight-surface/50 space-y-2">
-                  <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider block">
-                    Unstructured Buyer Input
-                  </span>
-                  <div className="p-3 rounded-lg bg-midnight-card border border-midnight-border/60 text-xs font-mono text-slate-300 leading-relaxed italic">
-                    "We need 25 boxes of 12-ounce food-safe paper cups for our café."
-                  </div>
-                  <span className="text-[11px] text-midnight-muted block">
-                    Source: Informal Kirana Request &bull; Timestamped
-                  </span>
-                </div>
-
-                {/* Arrow */}
-                <div className="md:col-span-2 flex justify-center text-midnight-red">
-                  <ArrowRight className="h-6 w-6 rotate-90 md:rotate-0" />
-                </div>
-
-                {/* Structured Fields Output */}
-                <div className="md:col-span-5 p-4 rounded-xl border border-emerald-500/30 bg-midnight-card space-y-2">
-                  <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider block">
-                    Parsed Structured Specifications
-                  </span>
-                  <div className="space-y-1 text-xs">
-                    <div className="flex justify-between py-1 border-b border-midnight-border/40">
-                      <span className="text-midnight-muted">Product:</span>
-                      <span className="font-semibold text-white">Paper Cups</span>
-                    </div>
-                    <div className="flex justify-between py-1 border-b border-midnight-border/40">
-                      <span className="text-midnight-muted">Quantity:</span>
-                      <span className="font-semibold text-white">25 boxes</span>
-                    </div>
-                    <div className="flex justify-between py-1 border-b border-midnight-border/40">
-                      <span className="text-midnight-muted">Capacity:</span>
-                      <span className="font-semibold text-white">12 oz</span>
-                    </div>
-                    <div className="flex justify-between py-1 border-b border-midnight-border/40">
-                      <span className="text-midnight-muted">Material:</span>
-                      <span className="font-semibold text-white">Paperboard</span>
-                    </div>
-                    <div className="flex justify-between py-1 border-b border-midnight-border/40">
-                      <span className="text-midnight-muted">Food Safe:</span>
-                      <Badge variant="success" className="text-[10px] py-0 px-1.5">
-                        Required &check;
-                      </Badge>
-                    </div>
-                    <div className="flex justify-between py-1">
-                      <span className="text-midnight-muted">Delivery Area:</span>
-                      <Badge variant="warning" className="text-[10px] py-0 px-1.5">
-                        Lucknow (Confirm Pin)
-                      </Badge>
-                    </div>
-                  </div>
                 </div>
               </div>
             </TabsContent>

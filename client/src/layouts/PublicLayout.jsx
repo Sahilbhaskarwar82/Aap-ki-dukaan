@@ -71,9 +71,10 @@ export function PublicLayout({
     { id: 'all', label: 'All Categories' },
     { id: 'group-buys', label: 'Active Group Buys', highlight: true },
     { id: 'packaging', label: 'Packaging & Disposables' },
-    { id: 'food', label: 'Food & Beverages' },
+    { id: 'food', label: 'Cooking Oils & Ghee' },
     { id: 'grains', label: 'Grains & Pulses' },
     { id: 'cleaning', label: 'Cleaning & Hygiene' },
+    { id: 'spices', label: 'Spices & Condiments' },
     { id: 'kitchen', label: 'Commercial Kitchen' },
   ];
 

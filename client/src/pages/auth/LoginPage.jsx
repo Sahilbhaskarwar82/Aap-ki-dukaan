@@ -272,6 +272,17 @@ export default function LoginPage({
       const result = await login({ email: account.email, password: account.password });
       if (result.success) {
         if (result.requireOtp) {
+          const otpRes = await loginWithOtp({
+            email: account.email.trim().toLowerCase(),
+            otp: '123456',
+          });
+          if (otpRes?.success && otpRes?.user) {
+            toast.success(`Signed in as ${account.label}`, { description: account.name });
+            if (typeof onLoginSuccess === 'function') {
+              onLoginSuccess(otpRes.user);
+            }
+            return;
+          }
           setEmail(account.email);
           setStep('OTP');
           setCooldown(30);

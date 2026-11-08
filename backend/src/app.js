@@ -27,6 +27,7 @@ import supplierRouter, { productRouter, offerRouter } from "./routes/supplier.ro
 import requirementRouter from "./routes/requirement.routes.js";
 import quoteRouter from "./routes/quote.routes.js";
 import adminRouter from "./routes/admin.routes.js";
+import chatRouter from "./routes/chat.routes.js";
 
 const app = express();
 
@@ -112,6 +113,7 @@ app.use("/api/offers", offerRouter);
 app.use("/api/requirements", requirementRouter);
 app.use("/api/quotes", quoteRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/chat", chatRouter);
 
 // 11. Centralized Safe Error Handling Middleware
 app.use(errorHandler);
