@@ -43,15 +43,15 @@ test.describe('SUJ-10: Under-MOQ Lifecycle & Automated Refunds Verification', ()
     });
     expect(lifecycleRes.ok()).toBeTruthy();
 
-    // ── 2. Sign In as Shop A (Participant in Scenario 3 Under-MOQ Pool) ────────
+    // ── 2. Sign In as Shop B (Participant in Scenario 3 Under-MOQ Pool) ────────
     await page.goto('/login');
     await page.waitForLoadState('networkidle');
 
-    const shopADemoBtn = page.locator('button[aria-label*="Sign in as Shop A"]');
-    if (await shopADemoBtn.isVisible()) {
-      await shopADemoBtn.click();
+    const shopBDemoBtn = page.locator('button[aria-label*="Sign in as Shop B"]');
+    if (await shopBDemoBtn.isVisible()) {
+      await shopBDemoBtn.click();
     } else {
-      await page.fill('#login-email', 'cafeA@demo.aapkidukan.in');
+      await page.fill('#login-email', 'bakeryB@demo.aapkidukan.in');
       await page.fill('#login-password', 'SecurePassword123!');
       await page.click('button[type="submit"]');
     }

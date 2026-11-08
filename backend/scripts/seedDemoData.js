@@ -1043,25 +1043,12 @@ async function seedMasterData() {
   clockService.reset();
 
   // Clean previous demo pools and derived state idempotently
-  await GroupBuyPool.deleteMany({
-    $or: [
-      { dataSourceType: 'SEEDED_DEMO' },
-      { title: { $regex: '^Lucknow' } },
-      { title: { $regex: 'Pool' } },
-      { title: { $regex: 'Cups' } },
-    ],
-  });
+  await GroupBuyPool.deleteMany({});
   await Contribution.deleteMany({});
-  await Payment.deleteMany({
-    $or: [
-      { providerOrderId: { $regex: '^MOCK_ORDER_' } },
-      { idempotencyKey: { $regex: '^SEED_IDEMP_' } },
-      { isTestTransaction: true },
-    ],
-  });
+  await Payment.deleteMany({});
   await PriceSnapshot.deleteMany({});
-  await Order.deleteMany({ orderNumber: 'AKD-2026-0001' });
-  await SupplierSettlement.deleteMany({ settlementStatus: 'SIMULATED' });
+  await Order.deleteMany({});
+  await SupplierSettlement.deleteMany({});
   await Refund.deleteMany({});
 
   // ── 1. Create Wholesaler Suppliers ──────────────────────────────────────────
@@ -1242,7 +1229,7 @@ async function seedMasterData() {
 
   const cupPool = await GroupBuyPool.create({
     title: 'Lucknow Kirana Bio-Cups Bulk Pool (₹4,800 Goal)',
-    createdByUserId: shopAUser._id,
+    createdByUserId: shopBUser._id,
     productId: cupProduct._id,
     supplierOfferId: cupOffer._id,
     deliveryArea: 'LUCKNOW',
@@ -1254,7 +1241,7 @@ async function seedMasterData() {
     minRetailerQuantity: 12,
     quantityStepMultiple: 1,
     totalEligibleQuantity: 60,
-    participantCount: 3,
+    participantCount: 2,
     baseUnitPriceMinor: 10000,
     currentUnitPriceMinor: 8000, // Unlocked tier: ₹80.00
     estimatedMerchandiseTotalMinor: 480000, // Exactly ₹4,800.00 (480,000 paise)
@@ -1272,30 +1259,16 @@ async function seedMasterData() {
     ],
   });
 
-  const contribA = await Contribution.create({
-    poolId: cupPool._id,
-    shopId: shopAShop._id,
-    createdByUserId: shopAUser._id,
-    quantity: 20,
-    unit: 'BOX',
-    unitPriceMinor: 8000,
-    estimatedMerchandiseShareMinor: 160000,
-    finalTotalPayableMinor: 160000,
-    totalPaidMinor: 160000,
-    approvalStatus: 'PENDING_APPROVAL',
-    state: 'ACTIVE',
-  });
-
   const contribB = await Contribution.create({
     poolId: cupPool._id,
     shopId: shopBShop._id,
     createdByUserId: shopBUser._id,
-    quantity: 15,
+    quantity: 35,
     unit: 'BOX',
     unitPriceMinor: 8000,
-    estimatedMerchandiseShareMinor: 120000,
-    finalTotalPayableMinor: 120000,
-    totalPaidMinor: 120000,
+    estimatedMerchandiseShareMinor: 280000,
+    finalTotalPayableMinor: 280000,
+    totalPaidMinor: 280000,
     approvalStatus: 'PENDING_APPROVAL',
     state: 'ACTIVE',
   });
@@ -1328,28 +1301,16 @@ async function seedMasterData() {
     groupTotalPayableMinor: 480000,
     memberShares: [
       {
-        contributionId: contribA._id,
-        shopId: contribA.shopId,
-        quantity: 20,
-        unit: 'BOX',
-        appliedUnitPriceMinor: 8000,
-        merchandiseShareMinor: 160000,
-        shippingShareMinor: 0,
-        roundingAdjustmentMinor: 0,
-        totalPayableMinor: 160000,
-        verifiedSavingsMinor: 40000,
-      },
-      {
         contributionId: contribB._id,
         shopId: contribB.shopId,
-        quantity: 15,
+        quantity: 35,
         unit: 'BOX',
         appliedUnitPriceMinor: 8000,
-        merchandiseShareMinor: 120000,
+        merchandiseShareMinor: 280000,
         shippingShareMinor: 0,
         roundingAdjustmentMinor: 0,
-        totalPayableMinor: 120000,
-        verifiedSavingsMinor: 30000,
+        totalPayableMinor: 280000,
+        verifiedSavingsMinor: 70000,
       },
       {
         contributionId: contribC._id,
@@ -1372,8 +1333,7 @@ async function seedMasterData() {
 
   // Seed Verified Captured Payments for Scenario 1
   for (const [contrib, amount] of [
-    [contribA, 160000],
-    [contribB, 120000],
+    [contribB, 280000],
     [contribC, 200000],
   ]) {
     await Payment.create({
@@ -1397,8 +1357,8 @@ async function seedMasterData() {
 
   // Seed Notification
   await Notification.create({
-    recipientUserId: shopAUser._id,
-    shopId: shopAShop._id,
+    recipientUserId: shopBUser._id,
+    shopId: shopBShop._id,
     poolId: cupPool._id,
     type: 'MOQ_REACHED_LOCKED',
     title: 'MOQ Milestone Reached: ₹4,800 Bulk Tier Unlocked!',
@@ -1507,7 +1467,7 @@ async function seedMasterData() {
   console.log('⏰ Seeding Scenario 3: 72h Expired Under-MOQ Pool in 24h Decision Window...');
   const underMoqPool = await GroupBuyPool.create({
     title: 'Lucknow Premium Rice Pool (Under-MOQ Resolution)',
-    createdByUserId: shopAUser._id,
+    createdByUserId: shopBUser._id,
     productId: riceProduct._id,
     supplierOfferId: riceOffer._id,
     deliveryArea: 'LUCKNOW',
@@ -1553,10 +1513,10 @@ async function seedMasterData() {
     ],
   });
 
-  const underContribA = await Contribution.create({
+  const underContribB = await Contribution.create({
     poolId: underMoqPool._id,
-    shopId: shopAShop._id,
-    createdByUserId: shopAUser._id,
+    shopId: shopBShop._id,
+    createdByUserId: shopBUser._id,
     quantity: 400,
     unit: 'BAG',
     unitPriceMinor: 46000,
@@ -1569,16 +1529,48 @@ async function seedMasterData() {
 
   await Payment.create({
     poolId: underMoqPool._id,
-    contributionId: underContribA._id,
-    shopId: underContribA.shopId,
-    payerUserId: underContribA.createdByUserId,
+    contributionId: underContribB._id,
+    shopId: underContribB.shopId,
+    payerUserId: underContribB.createdByUserId,
     amountMinor: 18400000,
     currency: 'INR',
     paymentPurpose: 'INITIAL_JOIN',
     provider: 'PAYPAL_SANDBOX',
-    providerOrderId: `MOCK_ORDER_${underContribA._id}`,
-    providerCaptureId: `MOCK_CAP_${underContribA._id}`,
-    idempotencyKey: `SEED_IDEMP_${underContribA._id}`,
+    providerOrderId: `MOCK_ORDER_${underContribB._id}`,
+    providerCaptureId: `MOCK_CAP_${underContribB._id}`,
+    idempotencyKey: `SEED_IDEMP_${underContribB._id}`,
+    paymentStatus: 'PAID',
+    status: 'PAID',
+    paidAt: new Date(),
+    isTestTransaction: true,
+  });
+
+  const underContribC = await Contribution.create({
+    poolId: underMoqPool._id,
+    shopId: shopCShop._id,
+    createdByUserId: shopCUser._id,
+    quantity: 200,
+    unit: 'BAG',
+    unitPriceMinor: 46000,
+    estimatedMerchandiseShareMinor: 9200000,
+    finalTotalPayableMinor: 9200000,
+    totalPaidMinor: 9200000,
+    state: 'ACTIVE',
+    underMoqDecision: 'PENDING',
+  });
+
+  await Payment.create({
+    poolId: underMoqPool._id,
+    contributionId: underContribC._id,
+    shopId: underContribC.shopId,
+    payerUserId: underContribC.createdByUserId,
+    amountMinor: 9200000,
+    currency: 'INR',
+    paymentPurpose: 'INITIAL_JOIN',
+    provider: 'PAYPAL_SANDBOX',
+    providerOrderId: `MOCK_ORDER_${underContribC._id}`,
+    providerCaptureId: `MOCK_CAP_${underContribC._id}`,
+    idempotencyKey: `SEED_IDEMP_${underContribC._id}`,
     paymentStatus: 'PAID',
     status: 'PAID',
     paidAt: new Date(),

@@ -21,18 +21,18 @@ test.describe('SUJ-10: Procurement Workflow & 3-Shop Hackathon Demo Verification
     await page.waitForLoadState('networkidle');
 
     // Quick demo button or form input fallback
-    const shopADemoBtn = page.locator('button[aria-label*="Sign in as Shop A"]');
-    if (await shopADemoBtn.isVisible()) {
-      await shopADemoBtn.click();
+    const shopBDemoBtn = page.locator('button[aria-label*="Sign in as Shop B"]');
+    if (await shopBDemoBtn.isVisible()) {
+      await shopBDemoBtn.click();
     } else {
-      await page.fill('#login-email', 'cafeA@demo.aapkidukan.in');
+      await page.fill('#login-email', 'bakeryB@demo.aapkidukan.in');
       await page.fill('#login-password', 'SecurePassword123!');
       await page.click('button[type="submit"]');
     }
 
     // Wait for redirect to dashboard or authenticated shell
     await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 15000 });
-    await expect(page.locator('body')).toContainText(/Shop A|Hazratganj|Dashboard|Group-Buy/i);
+    await expect(page.locator('body')).toContainText(/Shop A|Shop B|Hazratganj|Gomti|Dashboard|Group-Buy/i);
 
     // ── 2. Submit Purchasing Requirement & Confirm AI Extraction ─────────────
     await page.goto('/requirements/new');
@@ -47,7 +47,7 @@ test.describe('SUJ-10: Procurement Workflow & 3-Shop Hackathon Demo Verification
     const nlInput = page.locator('[data-testid="nl-textarea"]');
     await expect(nlInput).toBeVisible();
     await nlInput.fill(
-      'Urgent: We need 20 boxes of 250ml biodegradable paper cups for Hazratganj café delivered to Lucknow by next week.'
+      'Urgent: We need 20 boxes of 250ml biodegradable paper cups for Gomti bakery delivered to Lucknow by next week.'
     );
 
     const submitNlBtn = page.locator('[data-testid="nl-submit-button"]');
