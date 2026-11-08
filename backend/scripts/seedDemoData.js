@@ -91,7 +91,6 @@ const CATALOGUE_PRODUCTS = [
     isPartialPool: true,
     partialPoolKey: 'AKD-POOL-PKG-01',
     partialContributions: [
-      { shopKey: 'cafea@demo.aapkidukan.in', quantity: 200, unitPriceMinor: 8000 },
       { shopKey: 'bakeryb@demo.aapkidukan.in', quantity: 350, unitPriceMinor: 8000 },
       { shopKey: 'bistroc@demo.aapkidukan.in', quantity: 300, unitPriceMinor: 8000 },
     ],
@@ -113,7 +112,6 @@ const CATALOGUE_PRODUCTS = [
     isPartialPool: true,
     partialPoolKey: 'AKD-POOL-PKG-02',
     partialContributions: [
-      { shopKey: 'cafea@demo.aapkidukan.in', quantity: 80, unitPriceMinor: 45000 },
       { shopKey: 'bakeryb@demo.aapkidukan.in', quantity: 100, unitPriceMinor: 45000 },
       { shopKey: 'bistroc@demo.aapkidukan.in', quantity: 60, unitPriceMinor: 45000 },
     ],
@@ -228,7 +226,6 @@ const CATALOGUE_PRODUCTS = [
     isPartialPool: true,
     partialPoolKey: 'AKD-POOL-OIL-01',
     partialContributions: [
-      { shopKey: 'cafea@demo.aapkidukan.in', quantity: 100, unitPriceMinor: 142000 },
       { shopKey: 'bakeryb@demo.aapkidukan.in', quantity: 150, unitPriceMinor: 142000 },
       { shopKey: 'bistroc@demo.aapkidukan.in', quantity: 125, unitPriceMinor: 142000 },
     ],
@@ -250,7 +247,6 @@ const CATALOGUE_PRODUCTS = [
     isPartialPool: true,
     partialPoolKey: 'AKD-POOL-OIL-02',
     partialContributions: [
-      { shopKey: 'cafea@demo.aapkidukan.in', quantity: 50, unitPriceMinor: 720000 },
       { shopKey: 'bakeryb@demo.aapkidukan.in', quantity: 50, unitPriceMinor: 720000 },
       { shopKey: 'bistroc@demo.aapkidukan.in', quantity: 40, unitPriceMinor: 720000 },
     ],
@@ -393,7 +389,6 @@ const CATALOGUE_PRODUCTS = [
     isPartialPool: true,
     partialPoolKey: 'AKD-POOL-GRN-01',
     partialContributions: [
-      { shopKey: 'cafea@demo.aapkidukan.in', quantity: 40, unitPriceMinor: 182000 },
       { shopKey: 'bakeryb@demo.aapkidukan.in', quantity: 60, unitPriceMinor: 182000 },
       { shopKey: 'bistroc@demo.aapkidukan.in', quantity: 45, unitPriceMinor: 182000 },
     ],
@@ -415,7 +410,6 @@ const CATALOGUE_PRODUCTS = [
     isPartialPool: true,
     partialPoolKey: 'AKD-POOL-GRN-02',
     partialContributions: [
-      { shopKey: 'cafea@demo.aapkidukan.in', quantity: 120, unitPriceMinor: 198000 },
       { shopKey: 'bakeryb@demo.aapkidukan.in', quantity: 140, unitPriceMinor: 198000 },
       { shopKey: 'bistroc@demo.aapkidukan.in', quantity: 100, unitPriceMinor: 198000 },
     ],
@@ -530,7 +524,6 @@ const CATALOGUE_PRODUCTS = [
     isPartialPool: true,
     partialPoolKey: 'AKD-POOL-CLN-01',
     partialContributions: [
-      { shopKey: 'cafea@demo.aapkidukan.in', quantity: 60, unitPriceMinor: 46000 },
       { shopKey: 'bakeryb@demo.aapkidukan.in', quantity: 80, unitPriceMinor: 46000 },
       { shopKey: 'bistroc@demo.aapkidukan.in', quantity: 70, unitPriceMinor: 46000 },
     ],
@@ -552,7 +545,6 @@ const CATALOGUE_PRODUCTS = [
     isPartialPool: true,
     partialPoolKey: 'AKD-POOL-CLN-02',
     partialContributions: [
-      { shopKey: 'cafea@demo.aapkidukan.in', quantity: 50, unitPriceMinor: 35000 },
       { shopKey: 'bakeryb@demo.aapkidukan.in', quantity: 75, unitPriceMinor: 35000 },
       { shopKey: 'bistroc@demo.aapkidukan.in', quantity: 50, unitPriceMinor: 35000 },
     ],
@@ -680,7 +672,6 @@ const CATALOGUE_PRODUCTS = [
     isPartialPool: true,
     partialPoolKey: 'AKD-POOL-SPC-01',
     partialContributions: [
-      { shopKey: 'cafea@demo.aapkidukan.in', quantity: 20, unitPriceMinor: 275000 },
       { shopKey: 'bakeryb@demo.aapkidukan.in', quantity: 30, unitPriceMinor: 275000 },
       { shopKey: 'bistroc@demo.aapkidukan.in', quantity: 25, unitPriceMinor: 275000 },
     ],
@@ -702,7 +693,6 @@ const CATALOGUE_PRODUCTS = [
     isPartialPool: true,
     partialPoolKey: 'AKD-POOL-SPC-02',
     partialContributions: [
-      { shopKey: 'cafea@demo.aapkidukan.in', quantity: 25, unitPriceMinor: 340000 },
       { shopKey: 'bakeryb@demo.aapkidukan.in', quantity: 35, unitPriceMinor: 340000 },
       { shopKey: 'bistroc@demo.aapkidukan.in', quantity: 20, unitPriceMinor: 340000 },
     ],
@@ -830,7 +820,6 @@ const CATALOGUE_PRODUCTS = [
     isPartialPool: true,
     partialPoolKey: 'AKD-POOL-KIT-01',
     partialContributions: [
-      { shopKey: 'cafea@demo.aapkidukan.in', quantity: 30, unitPriceMinor: 36000 },
       { shopKey: 'bakeryb@demo.aapkidukan.in', quantity: 45, unitPriceMinor: 36000 },
       { shopKey: 'bistroc@demo.aapkidukan.in', quantity: 35, unitPriceMinor: 36000 },
     ],
@@ -852,7 +841,6 @@ const CATALOGUE_PRODUCTS = [
     isPartialPool: true,
     partialPoolKey: 'AKD-POOL-KIT-02',
     partialContributions: [
-      { shopKey: 'cafea@demo.aapkidukan.in', quantity: 20, unitPriceMinor: 75000 },
       { shopKey: 'bakeryb@demo.aapkidukan.in', quantity: 25, unitPriceMinor: 75000 },
       { shopKey: 'bistroc@demo.aapkidukan.in', quantity: 25, unitPriceMinor: 75000 },
     ],

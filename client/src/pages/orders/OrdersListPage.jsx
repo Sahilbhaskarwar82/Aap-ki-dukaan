@@ -109,6 +109,22 @@ export function OrdersListPage() {
 
       <SandboxDisclosureBanner />
 
+      {/* ── Wholesale Lifecycle Guidance Banner ── */}
+      <div className="p-3.5 rounded-lg border border-slate-700/60 bg-slate-900/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-slate-300">
+        <div className="flex items-start sm:items-center gap-2.5">
+          <Package className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5 sm:mt-0" />
+          <span>
+            <strong>Group Buy Lifecycle:</strong> Active commitments in recruiting pools are held in escrow. Track your live pool progress on <span className="font-semibold text-white">Group Buys</span> and <span className="font-semibold text-white">Dashboard</span>. Once a pool completes the manufacturer MOQ and freezes pricing, it is finalized into a confirmed collective purchase order listed here.
+          </span>
+        </div>
+        <button
+          onClick={() => navigate('/dashboard')}
+          className="text-emerald-400 hover:text-emerald-300 font-semibold underline shrink-0 cursor-pointer text-xs"
+        >
+          View Dashboard Commitments &rarr;
+        </button>
+      </div>
+
       {error && (
         <Alert variant="error">
           <AlertTriangle className="h-4 w-4" />
