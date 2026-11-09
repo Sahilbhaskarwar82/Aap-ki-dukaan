@@ -7,6 +7,7 @@ import morgan from "morgan";
 import mongoose from "mongoose";
 
 import env from "./config/env.js";
+import connectDB from "./config/db.js";
 import clockService from "./services/clock/clock.service.js";
 
 // Middleware
@@ -53,8 +54,14 @@ if (process.env.NODE_ENV !== "test") {
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, curl, health checks) or exact match
-      if (!origin || origin === env.CLIENT_ORIGIN || process.env.NODE_ENV !== "production") {
+      // Allow requests with no origin (like mobile apps, curl, health checks), exact match, or Vercel preview/production domains
+      if (
+        !origin ||
+        origin === env.CLIENT_ORIGIN ||
+        process.env.NODE_ENV !== "production" ||
+        (process.env.VERCEL_URL && origin === `https://${process.env.VERCEL_URL}`) ||
+        origin.endsWith(".vercel.app")
+      ) {
         return callback(null, true);
       }
       return callback(new Error("Not allowed by CORS policy."));
@@ -62,6 +69,20 @@ app.use(
     credentials: true,
   })
 );
+
+// 5b. Ensure database connection is active for serverless invocations (PRK-01 / Vercel Serverless)
+if (process.env.VERCEL === "1") {
+  app.use(async (_req, _res, next) => {
+    try {
+      if (mongoose.connection.readyState === 0) {
+        await connectDB();
+      }
+      next();
+    } catch (err) {
+      next(err);
+    }
+  });
+}
 
 // 6. JSON and URL-encoded body parsing with safe limits
 app.use(express.json({ limit: "16kb" }));

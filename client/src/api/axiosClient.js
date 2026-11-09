@@ -69,7 +69,8 @@ function resolveBaseUrl() {
     return clean.endsWith('/api') ? clean : `${clean}/api`;
   }
 
-  if (typeof window !== 'undefined' && window.location?.hostname === 'localhost') {
+  // When served from standalone Vite dev server on port 5173 without proxy, use local Express port 8000
+  if (typeof window !== 'undefined' && window.location?.hostname === 'localhost' && window.location?.port === '5173') {
     return 'http://localhost:8000/api';
   }
 

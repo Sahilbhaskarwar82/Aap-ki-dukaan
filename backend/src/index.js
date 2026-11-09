@@ -10,7 +10,7 @@ const startServer = async () => {
     // Initialize BullMQ background email/OTP worker
     try {
       await import("./workers/email.worker.js");
-      console.log("⚡ [Workers] Email & OTP background worker initialized");
+      console.log("🚀 [Workers] Email & OTP background worker initialized");
     } catch (workerErr) {
       console.warn("⚠️ [Workers] Notice: Email background worker initialization:", workerErr.message);
     }
@@ -39,4 +39,9 @@ const startServer = async () => {
   }
 };
 
-startServer();
+// Standalone execution: start server listener. On Vercel, app instance is exported for serverless execution.
+if (process.env.VERCEL !== "1") {
+  startServer();
+}
+
+export default app;
