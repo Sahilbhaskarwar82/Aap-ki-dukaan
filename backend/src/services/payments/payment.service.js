@@ -284,16 +284,9 @@ export async function capturePaymentOrder({
     );
   }
 
-  if (payment.providerOrderId !== providerOrderId) {
-    if (providerCaptureId) {
-      payment.providerOrderId = providerOrderId;
-      await payment.save();
-    } else {
-      throw new ApiError(
-        400,
-        "providerOrderId does not match the stored PayPal order ID for this payment."
-      );
-    }
+    if (providerOrderId && payment.providerOrderId !== providerOrderId) {
+    payment.providerOrderId = providerOrderId;
+    await payment.save();
   }
 
   // ── Concurrency Guard: Atomic lock CREATED -> CAPTURE_PENDING ───────────────
@@ -467,19 +460,58 @@ export async function handleCancelledOrFailedCheckout(paymentId, reason) {
 // 4. listPaymentsForShop
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function listPaymentsForShop(shopId, { page = 1, limit = 20 } = {}) {
-  const safePage = Math.max(1, parseInt(page, 10));
-  const safeLimit = Math.min(50, Math.max(1, parseInt(limit, 10)));
+export async function listPaymentsForShop(
+  shopId,
+  { page = 1, limit = 20, payerUserId = null, isAdmin = false, providerCaptureId = null } = {}
+) {
+  const safePage = Math.max(1, parseInt(page, 10) || 1);
+  const safeLimit = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
   const skip = (safePage - 1) * safeLimit;
 
+  let query = {};
+  if (isAdmin) {
+    if (shopId && mongoose.isValidObjectId(shopId)) {
+      query.shopId = shopId;
+    }
+  } else if (shopId && payerUserId) {
+    const orConditions = [];
+    if (mongoose.isValidObjectId(shopId)) orConditions.push({ shopId });
+    if (mongoose.isValidObjectId(payerUserId)) orConditions.push({ payerUserId });
+    if (orConditions.length > 0) {
+      query = { $or: orConditions };
+    } else {
+      return { payments: [], total: 0, page: safePage, limit: safeLimit };
+    }
+  } else if (shopId) {
+    if (mongoose.isValidObjectId(shopId)) {
+      query = { shopId };
+    } else {
+      return { payments: [], total: 0, page: safePage, limit: safeLimit };
+    }
+  } else if (payerUserId) {
+    if (mongoose.isValidObjectId(payerUserId)) {
+      query = { payerUserId };
+    } else {
+      return { payments: [], total: 0, page: safePage, limit: safeLimit };
+    }
+  } else {
+    return { payments: [], total: 0, page: safePage, limit: safeLimit };
+  }
+
+  if (providerCaptureId) {
+    query.providerCaptureId = providerCaptureId;
+  }
+
   const [payments, total] = await Promise.all([
-    Payment.find({ shopId })
+    Payment.find(query)
+      .populate("poolId", "title packUnit targetMoq deliveryArea")
+      .populate("contributionId", "quantity unit totalPaidMinor state")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(safeLimit)
       .select("-providerResponseSnapshot")
       .lean(),
-    Payment.countDocuments({ shopId }),
+    Payment.countDocuments(query),
   ]);
 
   return { payments, total, page: safePage, limit: safeLimit };

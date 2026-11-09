@@ -1355,6 +1355,30 @@ async function seedMasterData() {
     });
   }
 
+  
+  // Seed Demo Tier-Drop Savings Refund for Shop B
+  const paymentB = await Payment.findOne({ contributionId: contribB._id });
+  if (paymentB) {
+    await Refund.create({
+      paymentId: paymentB._id,
+      poolId: cupPool._id,
+      contributionId: contribB._id,
+      shopId: contribB.shopId,
+      recipientUserId: contribB.createdByUserId,
+      amountMinor: 28000, // ₹280 Tier-Drop bulk savings
+      currency: 'INR',
+      reason: 'TIER_PRICE_DROP_SAVINGS',
+      providerRefundId: 'MOCK_REF_TIER_SAVINGS_' + contribB._id,
+      idempotencyKey: 'SEED_REF_IDEMP_' + contribB._id,
+      status: 'COMPLETED',
+      isTestTransaction: true,
+      metadata: {
+        poolTitle: cupPool.title,
+        notes: 'Tier price dropped from ₹80 to ₹72 per box on 60-box target reached.',
+      },
+    });
+  }
+
   // Seed Notification
   await Notification.create({
     recipientUserId: shopBUser._id,

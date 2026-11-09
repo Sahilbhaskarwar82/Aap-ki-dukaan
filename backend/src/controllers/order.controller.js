@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { APIResponse } from "../utils/apiResponse.js";
 import { ApiError } from "../utils/apiError.js";
@@ -153,7 +154,12 @@ export const listOrders = asyncHandler(async (req, res) => {
   const filter = {};
 
   if (user?.role === "SHOP_OWNER" || !user?.role) {
-    const shopId = req.shop?._id || user?.shopId || user?.shop?._id || user?.shop;
+    let shopId = req.shop?._id || user?.shopId || user?.shop?._id || user?.shop;
+    if (!shopId && user?._id) {
+      const Shop = mongoose.models.Shop || mongoose.model("Shop");
+      const shop = await Shop.findOne({ ownerUserId: user._id });
+      if (shop) shopId = shop._id;
+    }
     if (shopId) {
       filter["memberOrders.shopId"] = shopId;
     }
@@ -165,6 +171,9 @@ export const listOrders = asyncHandler(async (req, res) => {
   }
 
   const orders = await Order.find(filter)
+    .populate("supplierId", "name businessType contactReference serviceAreas")
+    .populate("productId", "canonicalName name category packSizeDescription")
+    .populate("poolId", "title deliveryArea targetMoq")
     .sort({ createdAt: -1 })
     .limit(50)
     .lean();

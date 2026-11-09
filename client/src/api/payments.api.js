@@ -95,13 +95,16 @@ export async function createPaymentOrder({
  * @param {string} params.providerOrderId - PayPal order ID returned by SDK upon approval
  * @returns {Promise<{ payment: object, contribution: object, isDuplicate: boolean }>}
  */
-export async function capturePaymentOrder(paymentId, { providerOrderId }) {
+export async function capturePaymentOrder(paymentId, { providerOrderId, providerCaptureId } = {}) {
   if (!paymentId) throw new Error('paymentId is required for capture.');
   if (!providerOrderId) throw new Error('providerOrderId is required for capture.');
 
-  const res = await axiosClient.post(`/payments/${paymentId}/capture`, {
-    providerOrderId,
-  });
+  const payload = { providerOrderId };
+  if (providerCaptureId) {
+    payload.providerCaptureId = providerCaptureId;
+  }
+
+  const res = await axiosClient.post(`/payments/${paymentId}/capture`, payload);
   return unwrap(res, {});
 }
 

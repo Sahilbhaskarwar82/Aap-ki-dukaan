@@ -5,6 +5,7 @@
  * Follows the project's asyncHandler + ApiError + APIResponse conventions.
  */
 
+import mongoose from "mongoose";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { APIResponse } from "../utils/apiResponse.js";
 import { ApiError } from "../utils/apiError.js";
@@ -15,7 +16,7 @@ import {
   listPaymentsForShop,
   handlePayPalWebhook,
   reconcilePaymentState,
-} from "../services/payment.service.js";
+} from "../services/payments/payment.service.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/payments/create-order
@@ -193,14 +194,48 @@ export const cancelCheckout = asyncHandler(async (req, res) => {
  * Response 200: { payments: [], total, page, limit }
  */
 export const listPayments = asyncHandler(async (req, res) => {
-  // req.shop is populated by authenticateJWT + requireShopProfile middleware
-  const shopId = req.shop?._id ?? req.user?.shopId;
-  if (!shopId) {
-    throw new ApiError(403, "No shop profile associated with this account.");
+  if (!req.user) {
+    throw new ApiError(401, "Authentication required to view payment history.");
   }
 
-  const { page, limit } = req.query;
-  const result = await listPaymentsForShop(shopId, { page, limit });
+  const { page, limit, shopId: queryShopId, providerCaptureId } = req.query;
+  const role = req.user.role;
+
+  // Admin or Reviewer: can view all payments or filter by queryShopId
+  if (role === "ADMIN" || role === "REVIEWER") {
+    const result = await listPaymentsForShop(queryShopId || null, {
+      page,
+      limit,
+      isAdmin: true,
+      providerCaptureId,
+    });
+    return res.status(200).json(
+      new APIResponse(200, result, "Payments retrieved successfully.")
+    );
+  }
+
+  // Shop Owner / Retailer: resolve shopId
+  let shopId = req.shop?._id ?? req.user?.shopId;
+  if (!shopId) {
+    try {
+      const Shop = mongoose.models?.Shop;
+      if (Shop && typeof Shop.findOne === "function") {
+        const shop = await Shop.findOne({ ownerUserId: req.user._id });
+        if (shop) {
+          shopId = shop._id;
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  const result = await listPaymentsForShop(shopId || null, {
+    page,
+    limit,
+    payerUserId: req.user._id,
+    providerCaptureId,
+  });
 
   return res.status(200).json(
     new APIResponse(200, result, "Payments retrieved successfully.")

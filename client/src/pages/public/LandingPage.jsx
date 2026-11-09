@@ -435,7 +435,7 @@ export function LandingPage({
   };
 
     // ── Unified Backend-Connected Join & Payment Handler ───────────────────────
-  const executeJoinPayment = async ({ isPayPal = false, paypalOrderId = null } = {}) => {
+  const executeJoinPayment = async ({ isPayPal = false, paypalOrderId = null, paypalCaptureId = null } = {}) => {
     if (!selectedPoolForJoin) return;
     const addedQty = Number(joinQuantity);
     if (!Number.isInteger(addedQty) || addedQty <= 0) {
@@ -452,7 +452,7 @@ export function LandingPage({
     const poolTitle = selectedPoolForJoin.title;
     const poolUnit = selectedPoolForJoin.unit;
     const calculatedCost = (addedQty * selectedPoolForJoin.currentTierPrice).toLocaleString('en-IN');
-    let captureId = isPayPal && paypalOrderId ? paypalOrderId : ('MOCK-CAP-' + Date.now().toString(36).toUpperCase());
+    let captureId = isPayPal && (paypalCaptureId || paypalOrderId) ? (paypalCaptureId || paypalOrderId) : ('MOCK-CAP-' + Date.now().toString(36).toUpperCase());
 
     try {
       // 1. Ensure user has a valid shop session
@@ -479,27 +479,55 @@ export function LandingPage({
       let poolMongoId = selectedPoolForJoin._id || selectedPoolForJoin.id || selectedPoolForJoin.rawPool?._id;
 
       // If id is a mock string like 'pool-1' or 'pool-3', resolve to actual pool in MongoDB
+      let resolvedPool = null;
       if (!isTestEnv && (!poolMongoId || String(poolMongoId).startsWith('pool-'))) {
         try {
           const livePoolsRes = await axiosClient.get('/pools');
           const allLivePools = livePoolsRes.data?.data || livePoolsRes.data || [];
           const cleanTarget = (selectedPoolForJoin.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-          const matched = allLivePools.find((p) => {
+          
+          let matched = allLivePools.find((p) => {
             const cleanP = (p.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
             return cleanP === cleanTarget || cleanP.includes(cleanTarget.slice(0, 15)) || cleanTarget.includes(cleanP.slice(0, 15));
           });
+
+          if (!matched) {
+            const words = (selectedPoolForJoin.title || '').toLowerCase().split(/\s+/).filter((w) => w.length > 3);
+            matched = allLivePools.find((p) => {
+              const pTitle = (p.title || '').toLowerCase();
+              return words.some((w) => pTitle.includes(w));
+            });
+          }
+
+          if (!matched && selectedPoolForJoin.category) {
+            matched = allLivePools.find((p) => {
+              const pCat = (p.productId?.category || p.category || '').toLowerCase();
+              return pCat.includes(selectedPoolForJoin.category.toLowerCase());
+            });
+          }
+
+          if (!matched && allLivePools.length > 0) {
+            matched = allLivePools[0];
+          }
+
           if (matched?._id) {
             poolMongoId = matched._id;
+            resolvedPool = matched;
           }
         } catch (resolveErr) {
           console.warn('Could not resolve poolMongoId:', resolveErr?.message);
         }
       }
 
-      if (poolMongoId && !isTestEnv) {
+      // Guard: only proceed with backend calls if poolMongoId is a valid 24-hex MongoDB ObjectId.
+      const isValidObjectId = poolMongoId && /^[0-9a-fA-F]{24}$/.test(String(poolMongoId));
+
+      if (isValidObjectId && !isTestEnv) {
+        const minReqQty = resolvedPool?.minRetailerQuantity || selectedPoolForJoin.moqR || 1;
+        const submitQty = Math.max(addedQty, minReqQty);
         const joinPayload = {
-          quantity: addedQty,
-          unit: (selectedPoolForJoin.unit || 'BOX').toUpperCase(),
+          quantity: submitQty,
+          unit: (resolvedPool?.packUnit || selectedPoolForJoin.unit || 'BOX').toUpperCase(),
         };
         const joinRes = await axiosClient.post(`/pools/${poolMongoId}/contributions`, joinPayload);
         const contribData = joinRes.data?.data || joinRes.data;
@@ -513,12 +541,16 @@ export function LandingPage({
           });
           const paymentData = ordRes.data?.data || ordRes.data;
           const paymentId = paymentData?.paymentId || paymentData?._id;
-          const provOrderId = paymentData?.providerOrderId || ('PAYPAL_ORD_' + Date.now());
+          const provOrderId = paymentData?.providerOrderId || (isPayPal && paypalOrderId ? paypalOrderId : ('PAYPAL_ORD_' + Date.now()));
 
           if (paymentId) {
-            const capRes = await axiosClient.post(`/payments/${paymentId}/capture`, {
-              providerOrderId: provOrderId,
-            });
+            const capPayload = {
+              providerOrderId: isPayPal && paypalOrderId ? paypalOrderId : provOrderId,
+            };
+            if (captureId) {
+              capPayload.providerCaptureId = captureId;
+            }
+            const capRes = await axiosClient.post(`/payments/${paymentId}/capture`, capPayload);
             const capData = capRes.data?.data || capRes.data;
             if (capData?.payment?.providerCaptureId) {
               captureId = capData.payment.providerCaptureId;
@@ -552,7 +584,8 @@ export function LandingPage({
         method: isPayPal ? 'PayPal Smart Buttons (Sandbox)' : '1-Click Fast Sandbox Pay',
       });
 
-      const isQueueComplete = (selectedPoolForJoin.pooledQuantity + addedQty) >= (selectedPoolForJoin.moq || 60);
+      const targetMoq = selectedPoolForJoin.moqW || selectedPoolForJoin.targetQuantity || selectedPoolForJoin.targetMoq || 60;
+      const isQueueComplete = (selectedPoolForJoin.pooledQuantity + addedQty) >= targetMoq;
 
       toast.success(
         isQueueComplete
@@ -589,16 +622,21 @@ export function LandingPage({
 
   const handlePayPalApprove = async (data, actions) => {
     if (!selectedPoolForJoin) return;
-    let captureId = data?.orderID;
+    const clientOrderId = data?.orderID;
+    let clientCaptureId = null;
     if (actions?.order?.capture) {
       try {
         const details = await actions.order.capture();
-        captureId = details?.id || details?.purchase_units?.[0]?.payments?.captures?.[0]?.id || captureId;
+        clientCaptureId = details?.purchase_units?.[0]?.payments?.captures?.[0]?.id || details?.id;
       } catch (captureErr) {
         console.warn('Sandbox client capture note:', captureErr);
       }
     }
-    executeJoinPayment({ isPayPal: true, paypalOrderId: captureId });
+    executeJoinPayment({
+      isPayPal: true,
+      paypalOrderId: clientOrderId,
+      paypalCaptureId: clientCaptureId || clientOrderId,
+    });
   };
 
   return (

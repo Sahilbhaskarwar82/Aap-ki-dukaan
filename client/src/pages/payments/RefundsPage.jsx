@@ -159,7 +159,10 @@ export function RefundsPage() {
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchesRefundId = item.providerRefundId?.toLowerCase().includes(q);
-        const matchesPaymentId = item.paymentId?.toLowerCase().includes(q);
+        const paymentIdStr = typeof item.paymentId === 'object' && item.paymentId !== null
+          ? (item.paymentId._id || item.paymentId.providerCaptureId || '')
+          : String(item.paymentId || '');
+        const matchesPaymentId = paymentIdStr.toLowerCase().includes(q);
         const matchesId = item._id?.toLowerCase().includes(q);
         if (!matchesRefundId && !matchesPaymentId && !matchesId) {
           return false;
@@ -449,11 +452,13 @@ export function RefundsPage() {
                       {/* Source Payment ID */}
                       <TableCell>
                         <div className="font-mono text-xs text-midnight-muted truncate max-w-[140px] select-all">
-                          {item.paymentId ? `Pay: ${item.paymentId.slice(-8)}` : '—'}
+                          {item.paymentId ? `Pay: ${String(item.paymentId?._id || item.paymentId).slice(-8)}` : '—'}
                         </div>
                         {item.poolId && (
                           <div className="text-[10px] text-midnight-muted truncate max-w-[140px]">
-                            Pool: {item.poolId.slice(-8)}
+                            {typeof item.poolId === 'object'
+                              ? (item.poolId.title || `Pool: ${String(item.poolId._id).slice(-8)}`)
+                              : `Pool: ${String(item.poolId).slice(-8)}`}
                           </div>
                         )}
                       </TableCell>

@@ -363,19 +363,54 @@ export async function processTierDropSavingsRefunds({ poolId, priceSnapshotId })
 // 3. listRefundsForShop
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function listRefundsForShop(shopId, { page = 1, limit = 20 } = {}) {
-  const safePage = Math.max(1, parseInt(page, 10));
-  const safeLimit = Math.min(50, Math.max(1, parseInt(limit, 10)));
+export async function listRefundsForShop(
+  shopId,
+  { page = 1, limit = 20, recipientUserId = null, isAdmin = false } = {}
+) {
+  const safePage = Math.max(1, parseInt(page, 10) || 1);
+  const safeLimit = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
   const skip = (safePage - 1) * safeLimit;
 
+  let query = {};
+  if (isAdmin) {
+    if (shopId && mongoose.isValidObjectId(shopId)) {
+      query.shopId = shopId;
+    }
+  } else if (shopId && recipientUserId) {
+    const orConditions = [];
+    if (mongoose.isValidObjectId(shopId)) orConditions.push({ shopId });
+    if (mongoose.isValidObjectId(recipientUserId)) orConditions.push({ recipientUserId });
+    if (orConditions.length > 0) {
+      query = { $or: orConditions };
+    } else {
+      return { refunds: [], total: 0, page: safePage, limit: safeLimit };
+    }
+  } else if (shopId) {
+    if (mongoose.isValidObjectId(shopId)) {
+      query = { shopId };
+    } else {
+      return { refunds: [], total: 0, page: safePage, limit: safeLimit };
+    }
+  } else if (recipientUserId) {
+    if (mongoose.isValidObjectId(recipientUserId)) {
+      query = { recipientUserId };
+    } else {
+      return { refunds: [], total: 0, page: safePage, limit: safeLimit };
+    }
+  } else {
+    return { refunds: [], total: 0, page: safePage, limit: safeLimit };
+  }
+
   const [refunds, total] = await Promise.all([
-    Refund.find({ shopId })
+    Refund.find(query)
+      .populate("poolId", "title packUnit targetMoq")
+      .populate("paymentId", "amountMinor currency paymentPurpose paymentStatus providerOrderId providerCaptureId")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(safeLimit)
       .select("-providerResponseSnapshot")
       .lean(),
-    Refund.countDocuments({ shopId }),
+    Refund.countDocuments(query),
   ]);
 
   return { refunds, total, page: safePage, limit: safeLimit };

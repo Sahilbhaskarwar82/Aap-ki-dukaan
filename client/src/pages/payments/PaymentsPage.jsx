@@ -142,11 +142,14 @@ export function PaymentsPage() {
         return false;
       }
       if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
+        const q = searchQuery.trim().toLowerCase();
         const matchesOrder = item.providerOrderId?.toLowerCase().includes(q);
         const matchesCapture = item.providerCaptureId?.toLowerCase().includes(q);
         const matchesId = item._id?.toLowerCase().includes(q);
-        if (!matchesOrder && !matchesCapture && !matchesId) {
+        const matchesPool = typeof item.poolId === 'object'
+          ? item.poolId?.title?.toLowerCase().includes(q)
+          : String(item.poolId || '').toLowerCase().includes(q);
+        if (!matchesOrder && !matchesCapture && !matchesId && !matchesPool) {
           return false;
         }
       }
@@ -390,6 +393,11 @@ export function PaymentsPage() {
                         <div className="text-[11px] font-mono text-midnight-muted truncate max-w-[140px]">
                           {item._id}
                         </div>
+                        {item.poolId && (
+                          <div className="text-[10px] text-midnight-muted truncate max-w-[140px]" title={typeof item.poolId === 'object' ? item.poolId.title : item.poolId}>
+                            {typeof item.poolId === 'object' ? item.poolId.title : `Pool: ${String(item.poolId).slice(-8)}`}
+                          </div>
+                        )}
                       </TableCell>
 
                       {/* Purpose */}
