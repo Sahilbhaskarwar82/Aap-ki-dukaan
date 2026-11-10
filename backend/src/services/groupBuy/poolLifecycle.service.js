@@ -3,6 +3,7 @@ import { GroupBuyPool } from "../../models/GroupBuyPool.model.js";
 import { Contribution } from "../../models/Contribution.model.js";
 import { Payment } from "../../models/Payment.model.js";
 import { Refund } from "../../models/Refund.model.js";
+import { Shop } from "../../models/Shop.model.js";
 import { getOfferMoqRules, validateContributionQuantity } from "../pricing/moqValidator.service.js";
 import { freezePriceSnapshot } from "../pricing/snapshot.service.js";
 import { initiateRefund } from "../refunds/refund.service.js";
@@ -65,6 +66,7 @@ export const createPool = async (poolData, userId, session = null) => {
 
 /**
  * Retrieves pools matching query filters.
+ * Resolves creator shop names via createdByUserId → Shop.ownerUserId lookup.
  */
 export const listPools = async (filters = {}) => {
   const query = {};
@@ -72,17 +74,45 @@ export const listPools = async (filters = {}) => {
   if (filters.deliveryArea) query.deliveryArea = filters.deliveryArea;
   if (filters.productId) query.productId = filters.productId;
 
-  return await GroupBuyPool.find(query)
+  const pools = await GroupBuyPool.find(query)
     .populate("productId")
     .populate({
       path: "supplierOfferId",
       populate: { path: "supplierId" },
     })
     .sort({ createdAt: -1 });
-};
 
+  // Batch-resolve creator shop names without exposing personal user data
+  const creatorUserIds = [
+    ...new Set(
+      pools.map((p) => p.createdByUserId?.toString()).filter(Boolean)
+    ),
+  ];
+
+  const shopNameByUserId = {};
+
+  if (creatorUserIds.length > 0) {
+    const shops = await Shop.find({
+      ownerUserId: { $in: creatorUserIds },
+    })
+      .select("ownerUserId name")
+      .lean();
+
+    for (const s of shops) {
+      shopNameByUserId[s.ownerUserId.toString()] = s.name;
+    }
+  }
+
+  return pools.map((p) => {
+    const obj = p.toObject();
+    obj.creatorShopName =
+      shopNameByUserId[p.createdByUserId?.toString()] || null;
+    return obj;
+  });
+};
 /**
  * Retrieves pool detail by ID along with its active member summary.
+ * Resolves creator shop name and populates contribution shopId for frontend matching.
  */
 export const getPoolDetail = async (poolId) => {
   let pool = await GroupBuyPool.findById(poolId)
@@ -104,9 +134,21 @@ export const getPoolDetail = async (poolId) => {
   const contributions = await Contribution.find({
     poolId,
     state: { $in: ["ACTIVE", "PENDING_PAYMENT", "FINALIZED"] },
-  }).select("-roundingAdjustmentMinor");
+  })
+    .select("-roundingAdjustmentMinor")
+    .populate("shopId", "_id name");
 
-  return { pool, contributions };
+  // Resolve creator shop name
+  let creatorShopName = null;
+  if (pool.createdByUserId) {
+    const creatorShop = await Shop.findOne({ ownerUserId: pool.createdByUserId }).select("name").lean();
+    creatorShopName = creatorShop?.name || null;
+  }
+
+  const poolObj = pool.toObject();
+  poolObj.creatorShopName = creatorShopName;
+
+  return { pool: poolObj, contributions };
 };
 
 /**
@@ -185,14 +227,14 @@ export const joinPool = async (
 
   const approvedSubstitution = acceptSubstitution
     ? {
-        isSubstituted: true,
-        substitutionNote: "Buyer agreed to qualified substitution",
-        approvedByUserId: userId,
-        approvedAt: clockService.now(),
-      }
+      isSubstituted: true,
+      substitutionNote: "Buyer agreed to qualified substitution",
+      approvedByUserId: userId,
+      approvedAt: clockService.now(),
+    }
     : {
-        isSubstituted: false,
-      };
+      isSubstituted: false,
+    };
 
   const [contribution] = await Contribution.create(
     [

@@ -126,7 +126,7 @@ export const handleApproveSnapshot = asyncHandler(async (req, res) => {
     const activeContr = await Contribution.findOne({
       poolId: targetId,
       shopId: req.shop._id,
-      status: { $nin: ["WITHDRAWN", "CANCELLED", "REFUNDED"] },
+      state: { $nin: ["WITHDRAWN", "CANCELLED_UNDER_MOQ", "REFUNDED"] },
     });
     if (!activeContr) {
       throw new ApiError(404, "Active contribution not found for this shop in this pool.");
@@ -164,7 +164,7 @@ export const handleUnderMoqDecision = asyncHandler(async (req, res) => {
     const activeContr = await Contribution.findOne({
       poolId: targetId,
       shopId: req.shop._id,
-      status: { $nin: ["WITHDRAWN", "CANCELLED", "REFUNDED"] },
+      state: { $nin: ["WITHDRAWN", "CANCELLED_UNDER_MOQ", "REFUNDED"] },
     });
     if (!activeContr) {
       throw new ApiError(404, "Active contribution not found for this shop in this pool.");
