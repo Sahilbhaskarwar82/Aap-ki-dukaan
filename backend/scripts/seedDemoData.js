@@ -49,6 +49,19 @@ import { Refund } from '../src/models/Refund.model.js';
 import { createFinalOrderFromFundedPool } from '../src/services/orders/order.service.js';
 import clockService from '../src/services/clock/clock.service.js';
 
+// Intentional Opt-In Guard to protect clean environments against accidental seeding
+const hasOptIn =
+  process.env.ALLOW_DEMO_SEEDING === 'true' ||
+  process.argv.includes('--confirm-seed') ||
+  process.argv.includes('--force');
+if (!hasOptIn) {
+  console.warn('\n⚠️  DEMO SEEDING GUARD: Demo seeding is disabled by default to protect clean testing environments.');
+  console.warn('To intentionally repopulate demo data for development/evaluations, run with:');
+  console.warn('   node backend/scripts/seedDemoData.js --confirm-seed');
+  console.warn('   or set environment variable ALLOW_DEMO_SEEDING=true\n');
+  process.exit(0);
+}
+
 if (env.NODE_ENV === 'production') {
   console.error('❌ ABORTED: Cannot run demo seeder in production environment.');
   process.exit(1);

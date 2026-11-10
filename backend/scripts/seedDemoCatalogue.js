@@ -23,6 +23,19 @@ import { Supplier } from '../src/models/Supplier.model.js';
 import { SupplierOffer } from '../src/models/SupplierOffer.model.js';
 
 // ─── Safety Guard ──────────────────────────────────────────────────────────────
+// Intentional Opt-In Guard to protect clean environments against accidental seeding
+const hasOptIn =
+  process.env.ALLOW_DEMO_SEEDING === 'true' ||
+  process.argv.includes('--confirm-seed') ||
+  process.argv.includes('--force');
+if (!hasOptIn) {
+  console.warn('\n⚠️  DEMO SEEDING GUARD: Demo seeding is disabled by default to protect clean testing environments.');
+  console.warn('To intentionally repopulate demo data for development/evaluations, run with:');
+  console.warn('   node backend/scripts/seedDemoCatalogue.js --confirm-seed');
+  console.warn('   or set environment variable ALLOW_DEMO_SEEDING=true\n');
+  process.exit(0);
+}
+
 if (env.NODE_ENV === 'production') {
   console.error('❌  ABORTED: Cannot run demo seeder in production environment (NODE_ENV=production).');
   process.exit(1);
