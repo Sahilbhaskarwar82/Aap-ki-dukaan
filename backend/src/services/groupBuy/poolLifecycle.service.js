@@ -197,17 +197,7 @@ export const joinPool = async (
     );
   }
 
-  // If pool specifies a step multiple > 1, enforce step increment rule
-  const step = pool.quantityStepMultiple || pool.stepMultiple;
-  if (step && step > 1 && q % step !== 0) {
-    throw new ApiError(
-      400,
-      `Quantity ${q} is not a valid multiple of Step ${step}.`,
-      ["INVALID_STEP_MULTIPLE"]
-    );
-  }
-
-  // Check unique active contribution per shop in this pool
+// Check unique active contribution per shop in this pool
   const existing = await Contribution.findOne({
     poolId,
     shopId,
@@ -456,14 +446,24 @@ export const recalculatePool = async (poolId, session = null) => {
   pool.participantCount = participantCount;
 
   // Early MOQ Lock condition: Q_pool >= MOQ_W
-  if (totalEligibleQuantity >= pool.targetMoq && pool.state === "RECRUITING") {
-    pool.state = "AWAITING_APPROVALS";
-    pool.lockedAt = clockService.now();
-    pool.lockReason = "MOQ_REACHED_EARLY";
-    await pool.save(opts);
+  if (
+    totalEligibleQuantity >= pool.targetMoq &&
+    (pool.state === "RECRUITING" || pool.state === "AWAITING_APPROVALS" || pool.state === "FUNDED")
+  ) {
+    if (pool.state === "RECRUITING") {
+      pool.state = "AWAITING_APPROVALS";
+      pool.lockedAt = clockService.now();
+      pool.lockReason = "MOQ_REACHED_EARLY";
+      await pool.save(opts);
+    }
 
     // Freeze authoritative PriceSnapshot
-    const snapshot = await freezePriceSnapshot(poolId, session);
+    let snapshot = null;
+    try {
+      snapshot = await freezePriceSnapshot(poolId, session);
+    } catch {
+      // Snapshot may already be frozen
+    }
 
     // Queue is complete: directly process order without asking manufacturer permission
     const activeContribs = await Contribution.find({
@@ -477,13 +477,15 @@ export const recalculatePool = async (poolId, session = null) => {
 
     if (allPaid || pool.paymentPolicy === "PAY_AT_JOIN") {
       for (const c of activeContribs) {
-        c.approvalStatus = "APPROVED";
-        c.approvedPriceSnapshotId = snapshot?._id || pool.latestPriceSnapshotId;
-        c.approvedAt = clockService.now();
-        await c.save(opts);
+        if (c.approvalStatus !== "APPROVED") {
+          c.approvalStatus = "APPROVED";
+          c.approvedPriceSnapshotId = snapshot?._id || pool.latestPriceSnapshotId;
+          c.approvedAt = clockService.now();
+          await c.save(opts);
+        }
       }
       const reloadedPool = await GroupBuyPool.findById(poolId).session(session);
-      if (reloadedPool) {
+      if (reloadedPool && reloadedPool.state !== "FUNDED") {
         reloadedPool.state = "FUNDED";
         await reloadedPool.save(opts);
         pool.state = "FUNDED";

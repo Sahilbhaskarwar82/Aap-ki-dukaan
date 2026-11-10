@@ -122,6 +122,11 @@ export function PayPalCheckoutModal({
         console.warn('Backend payment initialization note:', err.message);
       }
 
+      // When backend returns an authentic providerOrderId, use it directly so capture matches seamlessly
+      if (orderData?.providerOrderId) {
+        return orderData.providerOrderId;
+      }
+
       // If client PayPal SDK actions are available, create authentic order on PayPal Sandbox
       if (actions?.order?.create) {
         const majorUnits = estimatedAmountMinor ? (estimatedAmountMinor / 100).toFixed(2) : '10.00';

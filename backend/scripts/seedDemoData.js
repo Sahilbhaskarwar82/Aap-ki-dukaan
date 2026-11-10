@@ -49,6 +49,19 @@ import { Refund } from '../src/models/Refund.model.js';
 import { createFinalOrderFromFundedPool } from '../src/services/orders/order.service.js';
 import clockService from '../src/services/clock/clock.service.js';
 
+// Intentional Opt-In Guard to protect clean environments against accidental seeding
+const hasOptIn =
+  process.env.ALLOW_DEMO_SEEDING === 'true' ||
+  process.argv.includes('--confirm-seed') ||
+  process.argv.includes('--force');
+if (!hasOptIn) {
+  console.warn('\n⚠️  DEMO SEEDING GUARD: Demo seeding is disabled by default to protect clean testing environments.');
+  console.warn('To intentionally repopulate demo data for development/evaluations, run with:');
+  console.warn('   node backend/scripts/seedDemoData.js --confirm-seed');
+  console.warn('   or set environment variable ALLOW_DEMO_SEEDING=true\n');
+  process.exit(0);
+}
+
 if (env.NODE_ENV === 'production') {
   console.error('❌ ABORTED: Cannot run demo seeder in production environment.');
   process.exit(1);
@@ -1352,6 +1365,30 @@ async function seedMasterData() {
       status: 'PAID',
       paidAt: new Date(),
       isTestTransaction: true,
+    });
+  }
+
+  
+  // Seed Demo Tier-Drop Savings Refund for Shop B
+  const paymentB = await Payment.findOne({ contributionId: contribB._id });
+  if (paymentB) {
+    await Refund.create({
+      paymentId: paymentB._id,
+      poolId: cupPool._id,
+      contributionId: contribB._id,
+      shopId: contribB.shopId,
+      recipientUserId: contribB.createdByUserId,
+      amountMinor: 28000, // ₹280 Tier-Drop bulk savings
+      currency: 'INR',
+      reason: 'TIER_PRICE_DROP_SAVINGS',
+      providerRefundId: 'MOCK_REF_TIER_SAVINGS_' + contribB._id,
+      idempotencyKey: 'SEED_REF_IDEMP_' + contribB._id,
+      status: 'COMPLETED',
+      isTestTransaction: true,
+      metadata: {
+        poolTitle: cupPool.title,
+        notes: 'Tier price dropped from ₹80 to ₹72 per box on 60-box target reached.',
+      },
     });
   }
 

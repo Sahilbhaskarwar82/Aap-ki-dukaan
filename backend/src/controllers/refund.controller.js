@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 /**
  * Refund Controller — SRU-04
  */
@@ -77,13 +78,46 @@ export const triggerTierDropRefunds = asyncHandler(async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const listRefunds = asyncHandler(async (req, res) => {
-  const shopId = req.shop?._id ?? req.user?.shopId;
-  if (!shopId) {
-    throw new ApiError(403, "No shop profile associated with this account.");
+  if (!req.user) {
+    throw new ApiError(401, "Authentication required to view refund history.");
   }
 
-  const { page, limit } = req.query;
-  const result = await listRefundsForShop(shopId, { page, limit });
+  const { page, limit, shopId: queryShopId } = req.query;
+  const role = req.user.role;
+
+  // Admin or Reviewer: can view all refunds or filter by queryShopId
+  if (role === "ADMIN" || role === "REVIEWER") {
+    const result = await listRefundsForShop(queryShopId || null, {
+      page,
+      limit,
+      isAdmin: true,
+    });
+    return res.status(200).json(
+      new APIResponse(200, result, "Refunds retrieved successfully.")
+    );
+  }
+
+  // Shop Owner / Retailer: resolve shopId
+  let shopId = req.shop?._id ?? req.user?.shopId;
+  if (!shopId) {
+    try {
+      const Shop = mongoose.models?.Shop;
+      if (Shop && typeof Shop.findOne === "function") {
+        const shop = await Shop.findOne({ ownerUserId: req.user._id });
+        if (shop) {
+          shopId = shop._id;
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  const result = await listRefundsForShop(shopId || null, {
+    page,
+    limit,
+    recipientUserId: req.user._id,
+  });
 
   return res.status(200).json(
     new APIResponse(200, result, "Refunds retrieved successfully.")
