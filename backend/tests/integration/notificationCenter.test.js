@@ -16,6 +16,7 @@ import request from "supertest";
 import express from "express";
 
 import { Notification, NOTIFICATION_TYPES } from "../../src/models/Notification.model.js";
+import { User } from "../../src/models/User.model.js";
 import {
   createNotification,
   sendEmailNotification,
@@ -25,14 +26,9 @@ import {
 } from "../../src/services/notifications/notification.service.js";
 import notificationRouter from "../../src/routes/notification.routes.js";
 
-function buildTestApp(getUser) {
+function buildTestApp() {
   const app = express();
   app.use(express.json());
-
-  app.use((req, _res, next) => {
-    req.user = typeof getUser === "function" ? getUser(req) : getUser;
-    next();
-  });
 
   app.use("/api/notifications", notificationRouter);
 
@@ -64,10 +60,24 @@ describe("Task SRU-08: Persistent In-App Notification Center", () => {
   let userAId;
   let userBId;
   let shopAId;
+  let userAToken;
 
   beforeEach(async () => {
     await Notification.deleteMany({});
-    userAId = new mongoose.Types.ObjectId();
+    await User.deleteMany({});
+
+    // Create a real SHOP_OWNER user for HTTP route tests
+    const userA = await User.create({
+      name: "Test Shop Owner",
+      email: `shopowner-${Date.now()}@test.demo`,
+      passwordHash: "hashed_password_placeholder",
+      role: "SHOP_OWNER",
+      status: "ACTIVE",
+    });
+
+    userAId = userA._id;
+    userAToken = userA.generateAccessToken();
+
     userBId = new mongoose.Types.ObjectId();
     shopAId = new mongoose.Types.ObjectId();
   });
@@ -245,8 +255,10 @@ describe("Task SRU-08: Persistent In-App Notification Center", () => {
       message: "A new shop joined your pool",
     });
 
-    const app = buildTestApp({ _id: userAId, role: "SHOP_OWNER" });
-    const res = await request(app).get("/api/notifications");
+    const app = buildTestApp();
+    const res = await request(app)
+      .get("/api/notifications")
+      .set("Authorization", `Bearer ${userAToken}`);
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
@@ -262,8 +274,10 @@ describe("Task SRU-08: Persistent In-App Notification Center", () => {
       message: "Please vote Proceed or Cancel within 24h",
     });
 
-    const app = buildTestApp({ _id: userAId, role: "SHOP_OWNER" });
-    const res = await request(app).patch(`/api/notifications/${notification._id}/read`);
+    const app = buildTestApp();
+    const res = await request(app)
+      .patch(`/api/notifications/${notification._id}/read`)
+      .set("Authorization", `Bearer ${userAToken}`);
 
     expect(res.status).toBe(200);
     expect(res.body.data.isRead).toBe(true);
@@ -280,15 +294,17 @@ describe("Task SRU-08: Persistent In-App Notification Center", () => {
       });
     }
 
-    const app = buildTestApp({ _id: userAId, role: "SHOP_OWNER" });
-    const res = await request(app).patch("/api/notifications/read-all");
+    const app = buildTestApp();
+    const res = await request(app)
+      .patch("/api/notifications/read-all")
+      .set("Authorization", `Bearer ${userAToken}`);
 
     expect(res.status).toBe(200);
     expect(res.body.data.modifiedCount).toBe(3);
   });
 
   it("10. HTTP GET /api/notifications returns 401 if unauthenticated", async () => {
-    const app = buildTestApp(null);
+    const app = buildTestApp();
     const res = await request(app).get("/api/notifications");
 
     expect(res.status).toBe(401);

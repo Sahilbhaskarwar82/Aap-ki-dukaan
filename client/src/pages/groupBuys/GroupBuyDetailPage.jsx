@@ -135,10 +135,13 @@ export function GroupBuyDetailPage() {
   // Find current user's contribution if any
   const myContribution = useMemo(() => {
     if (!contributions || !user) return null;
+    const myShopId = (shop?._id || user?.shopId)?.toString?.() || null;
+    if (!myShopId) return null;
     return contributions.find(
-      (c) =>
-        (c.shopId?._id || c.shopId) === (shop?._id || user?.shopId) &&
-        c.state !== 'WITHDRAWN'
+      (c) => {
+        const cShopId = (c.shopId?._id || c.shopId)?.toString?.() || null;
+        return cShopId === myShopId && c.state !== 'WITHDRAWN';
+      }
     ) || null;
   }, [contributions, user, shop]);
 
@@ -242,10 +245,11 @@ export function GroupBuyDetailPage() {
 
   // Handle Snapshot Approval (SUJ-04)
   const handleApproveSnapshotClick = async () => {
-    if (!pool?.activePriceSnapshotId) return;
+    const snapshotId = pool?.latestPriceSnapshotId?._id || pool?.latestPriceSnapshotId;
+    if (!snapshotId) return;
     try {
       setActionLoading(true);
-      await approvePriceSnapshot(poolId, pool.activePriceSnapshotId);
+      await approvePriceSnapshot(poolId, snapshotId);
       notify?.('Final Price Breakdown (Snapshot) approved!', 'success');
       await loadPoolData();
     } catch (err) {
@@ -323,6 +327,9 @@ export function GroupBuyDetailPage() {
               <Badge variant="pool">{pool.state}</Badge>
             </div>
             <p className="text-xs text-midnight-muted mt-0.5">
+              {pool.creatorShopName && (
+                <span>Published by <span className="text-slate-300 font-medium">{pool.creatorShopName}</span> • </span>
+              )}
               Target Area: <span className="text-slate-300 font-medium">{pool.deliveryArea}</span> • Unit:{' '}
               <span className="text-slate-300 font-medium">{packUnit}</span>
             </p>
@@ -435,7 +442,7 @@ export function GroupBuyDetailPage() {
               shippingShareMinor={pool.shippingCostMinor ? Math.floor(pool.shippingCostMinor / Math.max(1, pool.participantCount || 1)) : 0}
               totalPayableMinor={(myContribution?.quantity || joinQuantity || minRetailerQty) * currentPriceMinor}
               currency={currency}
-              snapshotVersion={pool.snapshotVersion || pool.activePriceSnapshotId}
+              snapshotVersion={pool.snapshotVersion || pool.latestPriceSnapshotId?._id || pool.latestPriceSnapshotId}
             />
           </div>
 
@@ -600,7 +607,7 @@ export function GroupBuyDetailPage() {
                 )}
 
                 {/* Explicit Snapshot Approval (SUJ-04) */}
-                {isAwaitingApprovals && myContribution.state !== 'APPROVED' && (
+                {isAwaitingApprovals && myContribution.approvalStatus !== 'APPROVED' && (
                   <div className="pt-3 border-t border-midnight-border/70 space-y-3">
                     <p className="text-xs text-teal-200">
                       Target achieved! Please review and explicitly approve final snapshot terms.

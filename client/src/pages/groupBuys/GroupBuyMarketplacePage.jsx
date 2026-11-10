@@ -243,7 +243,7 @@ export function GroupBuyMarketplacePage() {
 
         <Button
           variant="primary"
-          onClick={() => navigate(`/group-buys/${pool._id}`)}
+          onClick={() => navigate('/group-buys/create')}
           className="self-start sm:self-auto gap-2"
         >
           <Plus className="h-4 w-4" />
@@ -453,6 +453,12 @@ export function GroupBuyMarketplacePage() {
                   <h3 className="font-bold text-base text-white line-clamp-2 leading-snug">
                     {pool.title}
                   </h3>
+
+                  {pool.creatorShopName && (
+                    <p className="text-xs text-midnight-muted" data-testid="pool-creator-shop">
+                      by <span className="text-slate-300">{pool.creatorShopName}</span>
+                    </p>
+                  )}
 
                   <div className="flex items-center gap-1.5 text-xs text-midnight-muted">
                     <MapPin className="h-3.5 w-3.5 text-teal-400 shrink-0" />
