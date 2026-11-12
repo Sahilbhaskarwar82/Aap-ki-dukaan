@@ -2,8 +2,9 @@
  * CoBuy AI — AppShellLayout (HIM-05)
  *
  * Authenticated application shell:
- *  - Responsive sidebar with role-tailored navigation
- *  - Top header bar with branding, role badge, notification bell & user menu
+ *  - Collapsible desktop sidebar (expanded w-64 <-> compact icon rail w-[72px])
+ *  - Role-tailored collapsible navigation groups for SHOP_OWNER, SUPPLIER, ADMIN & REVIEWER
+ *  - Top header bar with branding, sidebar collapse toggle, role badge, notification bell & user menu
  *  - Interactive notification popover with real-time unread count
  *  - Mobile sliding drawer with backdrop overlay
  *  - Accessible keyboard navigation & ARIA landmarks
@@ -19,12 +20,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   ShoppingBag,
-  LayoutDashboard,
-  FileText,
-  Store,
-  Users,
-  Package,
-  CreditCard,
   Bell,
   User,
   LogOut,
@@ -32,70 +27,31 @@ import {
   X,
   CheckCheck,
   ChevronDown,
-  Shield,
-  Eye,
-  SlidersHorizontal,
+  ChevronRight,
+  PanelLeftClose,
+  PanelLeftOpen,
   ExternalLink,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useNotifications } from '@/context/NotificationContext';
 import { Badge } from '@/components/ui/Badge';
+import {
+  ROLE_NAVIGATION,
+  ROLE_NAV_GROUPS,
+  ROLE_BADGE_VARIANT,
+  ROLE_DISPLAY_NAMES,
+  SIDEBAR_COLLAPSED_KEY_PREFIX,
+  SIDEBAR_GROUPS_KEY_PREFIX,
+  getNavItemsForRole,
+  getNavGroupsForRole,
+  isNavItemActive,
+  readStoredBool,
+  writeStoredBool,
+  readStoredJson,
+  writeStoredJson,
+} from '@/layouts/roleNavigation';
 
-// ── Role navigation definitions ───────────────────────────────────────────────
-export const ROLE_NAVIGATION = {
-  SHOP_OWNER: [
-    { label: 'Marketplace',         path: '/',              icon: ShoppingBag },
-    { label: 'Dashboard',           path: '/dashboard',     icon: LayoutDashboard },
-    { label: 'Supplier Catalogue',  path: '/suppliers',     icon: Store },
-    { label: 'Group Buys',          path: '/group-buys',    icon: Users },
-    { label: 'Orders',              path: '/orders',        icon: Package },
-    { label: 'Payments & Refunds',  path: '/payments',      icon: CreditCard },
-    { label: 'Notifications',       path: '/notifications', icon: Bell },
-    { label: 'Shop Profile',        path: '/profile',       icon: User },
-  ],
-  SUPPLIER: [
-    { label: 'Marketplace',         path: '/',                icon: ShoppingBag },
-    { label: 'Supplier Portal',     path: '/supplier-portal', icon: Store },
-    { label: 'Notifications',       path: '/notifications',   icon: Bell },
-    { label: 'Profile',             path: '/profile',         icon: User },
-  ],
-  ADMIN: [
-    { label: 'Marketplace',             path: '/',                icon: ShoppingBag },
-    { label: 'Admin Overview',          path: '/admin',           icon: LayoutDashboard },
-    { label: 'Manage Suppliers',        path: '/admin/suppliers', icon: Store },
-    { label: 'Manage Offers',           path: '/admin/offers',    icon: SlidersHorizontal },
-    { label: 'Pools & Reconciliation',  path: '/admin/pools',     icon: Users },
-    { label: 'Audit & AI Logs',         path: '/admin/audit',     icon: Shield },
-    { label: 'Notifications',           path: '/notifications',   icon: Bell },
-  ],
-  REVIEWER: [
-    { label: 'Marketplace',     path: '/',                icon: ShoppingBag },
-    { label: 'Admin Overview',  path: '/admin',           icon: LayoutDashboard },
-    { label: 'Audit & AI Logs', path: '/admin/audit',     icon: Eye },
-    { label: 'Notifications',   path: '/notifications',   icon: Bell },
-  ],
-};
-
-/**
- * Returns navigation links for a given user role.
- */
-export function getNavItemsForRole(role) {
-  return ROLE_NAVIGATION[role] || [];
-}
-
-const ROLE_BADGE_VARIANT = {
-  SHOP_OWNER: 'success',
-  SUPPLIER:   'pool',
-  ADMIN:      'warning',
-  REVIEWER:   'neutral',
-};
-
-const ROLE_DISPLAY_NAMES = {
-  SHOP_OWNER: 'Shop Owner',
-  SUPPLIER:   'Wholesaler',
-  ADMIN:      'Admin',
-  REVIEWER:   'Reviewer',
-};
+export { ROLE_NAVIGATION, ROLE_NAV_GROUPS, getNavItemsForRole, getNavGroupsForRole };
 
 export default function AppShellLayout({
   children,
@@ -108,14 +64,46 @@ export default function AppShellLayout({
   const { user, shop, logout } = useAuth();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
 
-  const [mobileOpen, setMobileOpen]       = useState(false);
-  const [notifOpen, setNotifOpen]         = useState(false);
-  const [userMenuOpen, setUserMenuOpen]   = useState(false);
+  const roleKey = user?.role || 'GUEST';
 
-  const notifRef   = useRef(null);
-  const userRef    = useRef(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() =>
+    readStoredBool(`${SIDEBAR_COLLAPSED_KEY_PREFIX}${roleKey}`, false)
+  );
+  const [collapsedGroups, setCollapsedGroups] = useState(() =>
+    readStoredJson(`${SIDEBAR_GROUPS_KEY_PREFIX}${roleKey}`, {})
+  );
+
+  const notifRef = useRef(null);
+  const userRef = useRef(null);
 
   const navItems = getNavItemsForRole(user?.role);
+  const navGroups = getNavGroupsForRole(user?.role);
+  const primaryItem = navItems.find((item) => item.path === '/') || null;
+
+  // Sync sidebar preferences whenever active user role changes
+  useEffect(() => {
+    setSidebarCollapsed(readStoredBool(`${SIDEBAR_COLLAPSED_KEY_PREFIX}${roleKey}`, false));
+    setCollapsedGroups(readStoredJson(`${SIDEBAR_GROUPS_KEY_PREFIX}${roleKey}`, {}));
+  }, [roleKey]);
+
+  function toggleSidebarCollapse() {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      writeStoredBool(`${SIDEBAR_COLLAPSED_KEY_PREFIX}${roleKey}`, next);
+      return next;
+    });
+  }
+
+  function toggleGroupCollapse(groupId) {
+    setCollapsedGroups((prev) => {
+      const next = { ...prev, [groupId]: !prev[groupId] };
+      writeStoredJson(`${SIDEBAR_GROUPS_KEY_PREFIX}${roleKey}`, next);
+      return next;
+    });
+  }
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -138,6 +126,97 @@ export default function AppShellLayout({
     }
   }
 
+  function renderNavButton(item, { compact = false } = {}) {
+    const Icon = item.icon;
+    const isActive = isNavItemActive(item, currentPath);
+    const showUnread = item.path === '/notifications' && unreadCount > 0;
+
+    return (
+      <button
+        key={item.path}
+        type="button"
+        onClick={() => handleNav(item.path)}
+        aria-current={isActive ? 'page' : undefined}
+        aria-label={item.label}
+        title={compact ? item.label : undefined}
+        className={`relative w-full flex items-center ${compact ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2'
+          } rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-red ${isActive
+            ? 'bg-midnight-red text-white shadow-sm shadow-red-950/40'
+            : 'text-midnight-muted hover:text-midnight-text hover:bg-midnight-surface'
+          }`}
+      >
+        <Icon className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+        <span className={compact ? 'sr-only' : 'truncate flex-1 text-left'}>
+          {item.label}
+        </span>
+        {showUnread && !compact && (
+          <span
+            aria-hidden="true"
+            className={`ml-auto inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${isActive
+                ? 'bg-white/20 text-white'
+                : 'bg-midnight-red/20 text-midnight-red border border-midnight-red/30'
+              }`}
+          >
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </span>
+        )}
+        {showUnread && compact && (
+          <span
+            aria-hidden="true"
+            className="absolute top-1.5 right-2 h-2 w-2 rounded-full bg-midnight-red"
+          />
+        )}
+      </button>
+    );
+  }
+
+  function renderGroupedNavigation({ compact = false } = {}) {
+    return (
+      <nav className={compact ? 'space-y-1.5 w-full' : 'space-y-3'}>
+        {primaryItem && renderNavButton(primaryItem, { compact })}
+
+        {navGroups.map((group) => {
+          const isGroupCollapsed = Boolean(collapsedGroups[group.id]);
+
+          if (compact) {
+            return (
+              <div
+                key={group.id}
+                className="pt-2 border-t border-midnight-border/50 space-y-1"
+              >
+                {group.items.map((item) => renderNavButton(item, { compact: true }))}
+              </div>
+            );
+          }
+
+          return (
+            <div key={group.id} className="pt-1">
+              <button
+                type="button"
+                aria-expanded={!isGroupCollapsed}
+                onClick={() => toggleGroupCollapse(group.id)}
+                className="w-full flex items-center justify-between px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-midnight-muted hover:text-midnight-text transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-red"
+              >
+                <span>{group.label}</span>
+                {isGroupCollapsed ? (
+                  <ChevronRight className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+                ) : (
+                  <ChevronDown className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+                )}
+              </button>
+
+              {!isGroupCollapsed && (
+                <div className="mt-1 space-y-1">
+                  {group.items.map((item) => renderNavButton(item, { compact: false }))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </nav>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-midnight-bg text-midnight-text flex flex-col">
 
@@ -146,7 +225,7 @@ export default function AppShellLayout({
         className="sticky top-0 z-30 h-16 border-b border-midnight-border bg-midnight-card/90 backdrop-blur px-4 lg:px-6 flex items-center justify-between"
         role="banner"
       >
-        {/* Left: Mobile hamburger & Logo */}
+        {/* Left: Mobile hamburger, Desktop sidebar toggle & Logo */}
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -156,6 +235,22 @@ export default function AppShellLayout({
             className="lg:hidden p-2 rounded-md text-midnight-muted hover:text-midnight-text hover:bg-midnight-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-red"
           >
             {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+
+          <button
+            type="button"
+            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-expanded={!sidebarCollapsed}
+            aria-controls="desktop-sidebar-nav"
+            onClick={toggleSidebarCollapse}
+            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className="hidden lg:inline-flex p-2 rounded-md text-midnight-muted hover:text-midnight-text hover:bg-midnight-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-red transition-colors"
+          >
+            {sidebarCollapsed ? (
+              <PanelLeftOpen className="h-5 w-5" aria-hidden="true" />
+            ) : (
+              <PanelLeftClose className="h-5 w-5" aria-hidden="true" />
+            )}
           </button>
 
           <div
@@ -261,9 +356,8 @@ export default function AppShellLayout({
                           if (n.linkUrl) handleNav(n.linkUrl);
                           setNotifOpen(false);
                         }}
-                        className={`p-3 text-left hover:bg-midnight-surface/70 cursor-pointer transition-colors ${
-                          !n.isRead ? 'bg-midnight-surface/30' : ''
-                        }`}
+                        className={`p-3 text-left hover:bg-midnight-surface/70 cursor-pointer transition-colors ${!n.isRead ? 'bg-midnight-surface/30' : ''
+                          }`}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <p className="text-xs font-semibold text-midnight-text leading-snug">
@@ -379,47 +473,35 @@ export default function AppShellLayout({
 
         {/* ── Desktop Sidebar ── */}
         <aside
+          id="desktop-sidebar-nav"
           aria-label="Sidebar navigation"
-          className="hidden lg:flex w-64 flex-col border-r border-midnight-border bg-midnight-card p-4 space-y-1 overflow-y-auto"
+          data-collapsed={sidebarCollapsed ? 'true' : 'false'}
+          className={`hidden lg:flex flex-col border-r border-midnight-border bg-midnight-card overflow-y-auto transition-[width] duration-200 ease-in-out ${sidebarCollapsed ? 'w-[72px] px-2.5 py-4 space-y-2 items-center' : 'w-64 p-4 space-y-2'
+            }`}
         >
-          <div className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-wider text-midnight-muted">
+          <div
+            className={
+              sidebarCollapsed
+                ? 'sr-only'
+                : 'mb-1 px-2 text-[10px] font-semibold uppercase tracking-wider text-midnight-muted'
+            }
+          >
             {ROLE_DISPLAY_NAMES[user?.role] || 'Menu'}
           </div>
 
-          <nav className="space-y-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive =
-                item.path === '/'
-                  ? currentPath === '/'
-                  : currentPath === item.path || currentPath.startsWith(`${item.path}/`);
-              return (
-                <button
-                  key={item.path}
-                  type="button"
-                  onClick={() => handleNav(item.path)}
-                  aria-current={isActive ? 'page' : undefined}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-midnight-red text-white shadow-sm shadow-red-950/40'
-                      : 'text-midnight-muted hover:text-midnight-text hover:bg-midnight-surface'
-                  }`}
-                >
-                  <Icon className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
-                  <span className="truncate">{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
+          {renderGroupedNavigation({ compact: sidebarCollapsed })}
 
-          <div className="mt-auto pt-4 border-t border-midnight-border/60">
+          <div className="mt-auto w-full pt-4 border-t border-midnight-border/60">
             <button
               type="button"
               onClick={() => logout()}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-midnight-muted hover:text-midnight-rose hover:bg-midnight-rose/10 transition-colors"
+              aria-label="Sign out"
+              title={sidebarCollapsed ? 'Sign out' : undefined}
+              className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2'
+                } rounded-lg text-sm font-medium text-midnight-muted hover:text-midnight-rose hover:bg-midnight-rose/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-rose`}
             >
               <LogOut className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
-              <span>Sign out</span>
+              <span className={sidebarCollapsed ? 'sr-only' : ''}>Sign out</span>
             </button>
           </div>
         </aside>
@@ -476,31 +558,9 @@ export default function AppShellLayout({
                 )}
               </div>
 
-              <nav className="flex-1 space-y-1 overflow-y-auto">
-                {navItems.map((item) => {
-                  const Icon = item.icon;
-                  const isActive =
-                    item.path === '/'
-                      ? currentPath === '/'
-                      : currentPath === item.path || currentPath.startsWith(`${item.path}/`);
-                  return (
-                    <button
-                      key={item.path}
-                      type="button"
-                      onClick={() => handleNav(item.path)}
-                      aria-current={isActive ? 'page' : undefined}
-                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        isActive
-                          ? 'bg-midnight-red text-white'
-                          : 'text-midnight-muted hover:text-midnight-text hover:bg-midnight-surface'
-                      }`}
-                    >
-                      <Icon className="h-4 w-4 flex-shrink-0" />
-                      <span>{item.label}</span>
-                    </button>
-                  );
-                })}
-              </nav>
+              <div className="flex-1 overflow-y-auto">
+                {renderGroupedNavigation({ compact: false })}
+              </div>
 
               <div className="pt-3 border-t border-midnight-border">
                 <button

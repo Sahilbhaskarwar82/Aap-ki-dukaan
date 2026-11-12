@@ -1,17 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Search,
   MapPin,
   Menu,
   X,
-  Sparkles,
   ShieldCheck,
   HelpCircle,
+  ShoppingBag,
+  User,
+  Calculator,
+  Building,
+  ChevronDown,
+  ChevronRight,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Toaster, toast } from '@/components/ui/Toast';
 import { useOptionalAuth } from '@/context/AuthContext';
+import {
+  MARKETPLACE_CATEGORIES,
+  ROLE_BADGE_VARIANT,
+  ROLE_DISPLAY_NAMES,
+  SIDEBAR_COLLAPSED_KEY_PREFIX,
+  SIDEBAR_GROUPS_KEY_PREFIX,
+  getNavGroupsForRole,
+  readStoredBool,
+  writeStoredBool,
+  readStoredJson,
+  writeStoredJson,
+} from '@/layouts/roleNavigation';
 
 export function PublicLayout({
   children,
@@ -29,6 +48,46 @@ export function PublicLayout({
   const authContext = useOptionalAuth();
   const user = authContext?.user;
   const isAuthenticated = !!authContext?.isAuthenticated;
+
+  const roleKey = isAuthenticated && user?.role ? user.role : 'GUEST';
+  const roleGroups = isAuthenticated && user?.role ? getNavGroupsForRole(user.role) : [];
+
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() =>
+    readStoredBool(`${SIDEBAR_COLLAPSED_KEY_PREFIX}${roleKey}`, false)
+  );
+  const [collapsedGroups, setCollapsedGroups] = useState(() =>
+    readStoredJson(`${SIDEBAR_GROUPS_KEY_PREFIX}${roleKey}`, {})
+  );
+
+  useEffect(() => {
+    setSidebarCollapsed(readStoredBool(`${SIDEBAR_COLLAPSED_KEY_PREFIX}${roleKey}`, false));
+    setCollapsedGroups(readStoredJson(`${SIDEBAR_GROUPS_KEY_PREFIX}${roleKey}`, {}));
+  }, [roleKey]);
+
+  const toggleSidebarCollapse = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      writeStoredBool(`${SIDEBAR_COLLAPSED_KEY_PREFIX}${roleKey}`, next);
+      return next;
+    });
+  };
+
+  const toggleGroupCollapse = (groupId) => {
+    setCollapsedGroups((prev) => {
+      const next = { ...prev, [groupId]: !prev[groupId] };
+      writeStoredJson(`${SIDEBAR_GROUPS_KEY_PREFIX}${roleKey}`, next);
+      return next;
+    });
+  };
+
+  const handleRouteNavigate = (path) => {
+    setMobileMenuOpen(false);
+    if (typeof onNavigate === 'function') {
+      onNavigate(path);
+    } else if (typeof window !== 'undefined') {
+      window.location.href = path;
+    }
+  };
 
   const handleDashboard = () => {
     const roleHome =
@@ -67,17 +126,6 @@ export function PublicLayout({
     }
   };
 
-  const categories = [
-    { id: 'all', label: 'All Categories' },
-    { id: 'group-buys', label: 'Active Group Buys', highlight: true },
-    { id: 'packaging', label: 'Packaging & Disposables' },
-    { id: 'food', label: 'Cooking Oils & Ghee' },
-    { id: 'grains', label: 'Grains & Pulses' },
-    { id: 'cleaning', label: 'Cleaning & Hygiene' },
-    { id: 'spices', label: 'Spices & Condiments' },
-    { id: 'kitchen', label: 'Commercial Kitchen' },
-  ];
-
   return (
     <div className="min-h-screen bg-[#080A0F] text-[#EEF0F5] flex flex-col font-sans">
       <Toaster />
@@ -86,8 +134,23 @@ export function PublicLayout({
       <header className="sticky top-0 z-40 bg-[#080A0F]/90 backdrop-blur-md border-b border-white/[0.08]">
         <div className="marketplace-container">
           <div className="flex items-center justify-between h-16 gap-4 lg:gap-8">
-            {/* Logo */}
+            {/* Sidebar Toggle + Logo */}
             <div className="flex items-center gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={toggleSidebarCollapse}
+                aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                aria-expanded={!sidebarCollapsed}
+                aria-controls="public-sidebar-nav"
+                title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                className="hidden lg:inline-flex p-2 rounded-md text-slate-400 hover:text-white hover:bg-slate-800/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-red cursor-pointer"
+              >
+                {sidebarCollapsed ? (
+                  <PanelLeftOpen className="h-4 w-4" aria-hidden="true" />
+                ) : (
+                  <PanelLeftClose className="h-4 w-4" aria-hidden="true" />
+                )}
+              </button>
               <div className="flex flex-col">
                 <a href="#" className="flex items-center gap-2.5 group">
                   <div className="h-8 w-8 rounded-md bg-red-600 flex items-center justify-center text-white font-bold text-base shadow-sm">
@@ -254,6 +317,31 @@ export function PublicLayout({
                   </Button>
                 </>
               )}
+              {isAuthenticated && user && roleGroups.length > 0 && (
+                <div className="pt-2 border-t border-slate-800 space-y-2">
+                  {roleGroups.map((group) => (
+                    <div key={group.id} className="space-y-1">
+                      <p className="px-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                        {group.label}
+                      </p>
+                      {group.items.map((item) => {
+                        const Icon = item.icon;
+                        return (
+                          <button
+                            key={item.path}
+                            type="button"
+                            onClick={() => handleRouteNavigate(item.path)}
+                            className="w-full text-left text-xs font-medium text-slate-300 hover:text-white py-1.5 px-2 flex items-center gap-2 rounded hover:bg-slate-800"
+                          >
+                            <Icon className="h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
+                            <span>{item.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -283,7 +371,7 @@ export function PublicLayout({
         {/* Category Navigation Bar */}
         <div className="w-full max-w-full border-t border-white/[0.08] bg-[#0B0D14]/80 backdrop-blur-sm overflow-x-auto scrollbar-none">
           <div className="marketplace-container flex items-center gap-1.5 py-2 min-w-max">
-            {categories.map((cat) => {
+            {MARKETPLACE_CATEGORIES.map((cat) => {
               const isSelected = selectedCategory === cat.id;
               return (
                 <button
@@ -305,8 +393,213 @@ export function PublicLayout({
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 w-full">{children}</main>
+      {/* Body Wrapper: Collapsible Role-Aware Sidebar + Main Content */}
+      <div className="flex-1 flex min-w-0">
+        <aside
+          id="public-sidebar-nav"
+          aria-label="Marketplace and role navigation"
+          data-collapsed={sidebarCollapsed ? 'true' : 'false'}
+          data-role={roleKey}
+          className={`hidden lg:flex flex-col flex-shrink-0 border-r border-white/[0.08] bg-[#0B0D14]/90 transition-[width] duration-200 ${
+            sidebarCollapsed ? 'w-[72px]' : 'w-64'
+          }`}
+        >
+          <div
+            className={`sticky top-[106px] flex flex-col max-h-[calc(100vh-106px)] overflow-y-auto scrollbar-thin ${
+              sidebarCollapsed ? 'px-2 py-4 items-center' : 'p-4'
+            }`}
+          >
+            {/* Sidebar Role Header & Collapse Toggle */}
+            <div
+              className={`flex items-center ${
+                sidebarCollapsed
+                  ? 'justify-center mb-3 w-full'
+                  : 'justify-between gap-2 mb-3 pb-3 border-b border-white/[0.08]'
+              }`}
+            >
+              {!sidebarCollapsed && (
+                <Badge variant={ROLE_BADGE_VARIANT[roleKey] || 'neutral'} size="sm">
+                  {ROLE_DISPLAY_NAMES[roleKey] || roleKey}
+                </Badge>
+              )}
+              <button
+                type="button"
+                onClick={toggleSidebarCollapse}
+                aria-label={sidebarCollapsed ? 'Expand sidebar panel' : 'Collapse sidebar panel'}
+                aria-expanded={!sidebarCollapsed}
+                title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                className="p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-800/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-red cursor-pointer"
+              >
+                {sidebarCollapsed ? (
+                  <PanelLeftOpen className="h-4 w-4" aria-hidden="true" />
+                ) : (
+                  <PanelLeftClose className="h-4 w-4" aria-hidden="true" />
+                )}
+              </button>
+            </div>
+
+            <nav className={sidebarCollapsed ? 'space-y-1.5 w-full' : 'space-y-3'}>
+              <button
+                type="button"
+                onClick={() => onCategorySelect && onCategorySelect('all')}
+                aria-current="page"
+                aria-label="Browse Marketplace"
+                title={sidebarCollapsed ? 'Browse Marketplace' : undefined}
+                className={`w-full flex items-center ${
+                  sidebarCollapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2'
+                } rounded-lg text-sm font-medium bg-midnight-red text-white shadow-sm shadow-red-950/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-red cursor-pointer`}
+              >
+                <ShoppingBag className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+                <span className={sidebarCollapsed ? 'sr-only' : 'truncate flex-1 text-left'}>
+                  Marketplace Home
+                </span>
+              </button>
+
+              {[
+                ...(isAuthenticated && user
+                  ? roleGroups.map((group) => ({
+                      id: group.id,
+                      label: group.label,
+                      items: group.items.map((item) => ({
+                        key: item.path,
+                        label: item.label,
+                        ariaLabel: item.label,
+                        icon: item.icon,
+                        onClick: () => handleRouteNavigate(item.path),
+                      })),
+                    }))
+                  : []),
+                {
+                  id: 'marketplace-categories',
+                  label: 'Wholesale Categories',
+                  items: MARKETPLACE_CATEGORIES.map((cat) => ({
+                    key: cat.id,
+                    label: cat.label,
+                    ariaLabel: `Category: ${cat.label}`,
+                    icon: cat.icon,
+                    active: selectedCategory === cat.id,
+                    highlight: cat.highlight,
+                    onClick: () => onCategorySelect && onCategorySelect(cat.id),
+                  })),
+                },
+                ...(!isAuthenticated
+                  ? [
+                      {
+                        id: 'guest-access',
+                        label: 'Portals & Guides',
+                        items: [
+                          {
+                            key: 'moq-guide',
+                            label: 'MOQ & Group Rules',
+                            ariaLabel: 'MOQ & Group Rules',
+                            icon: Calculator,
+                            onClick: onOpenHowItWorks,
+                          },
+                          {
+                            key: 'buyer-portal',
+                            label: 'Retailer & Buyer Portal',
+                            ariaLabel: 'Retailer & Buyer Portal',
+                            icon: User,
+                            onClick: handleSignIn,
+                          },
+                          {
+                            key: 'supplier-onboarding',
+                            label: 'Supplier Onboarding',
+                            ariaLabel: 'Supplier Onboarding',
+                            icon: Building,
+                            onClick: handleRegister,
+                          },
+                        ],
+                      },
+                    ]
+                  : []),
+              ].map((section) => {
+                const isSectionCollapsed = Boolean(collapsedGroups[section.id]);
+
+                if (sidebarCollapsed) {
+                  return (
+                    <div
+                      key={section.id}
+                      className="pt-2 border-t border-white/[0.08] space-y-1"
+                    >
+                      {section.items.map((entry) => {
+                        const EntryIcon = entry.icon;
+                        return (
+                          <button
+                            key={entry.key}
+                            type="button"
+                            onClick={entry.onClick}
+                            aria-label={entry.ariaLabel}
+                            aria-pressed={entry.active}
+                            title={entry.label}
+                            className={`w-full flex items-center justify-center px-2 py-2.5 rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-red cursor-pointer ${
+                              entry.active
+                                ? 'bg-slate-800 text-white border border-slate-700'
+                                : entry.highlight
+                                ? 'text-red-400 hover:text-white hover:bg-slate-800/50'
+                                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                            }`}
+                          >
+                            <EntryIcon className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+                            <span className="sr-only">{entry.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                }
+
+                return (
+                  <div key={section.id} className="pt-1 border-t border-white/[0.06]">
+                    <button
+                      type="button"
+                      aria-expanded={!isSectionCollapsed}
+                      onClick={() => toggleGroupCollapse(section.id)}
+                      className="w-full flex items-center justify-between px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 hover:text-white transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-red cursor-pointer"
+                    >
+                      <span>{section.label}</span>
+                      {isSectionCollapsed ? (
+                        <ChevronRight className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+                      ) : (
+                        <ChevronDown className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+                      )}
+                    </button>
+                    {!isSectionCollapsed && (
+                      <div className="mt-1 space-y-1">
+                        {section.items.map((entry) => {
+                          const EntryIcon = entry.icon;
+                          return (
+                            <button
+                              key={entry.key}
+                              type="button"
+                              onClick={entry.onClick}
+                              aria-label={entry.ariaLabel}
+                              aria-pressed={entry.active}
+                              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midnight-red cursor-pointer ${
+                                entry.active
+                                  ? 'bg-slate-800 text-white border border-slate-700'
+                                  : entry.highlight
+                                  ? 'text-red-400 hover:text-white hover:bg-slate-800/50'
+                                  : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                              }`}
+                            >
+                              <EntryIcon className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+                              <span className="truncate flex-1 text-left">{entry.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </nav>
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <main className="flex-1 min-w-0">{children}</main>
+      </div>
 
       {/* Marketplace Comprehensive Footer */}
       <footer className="border-t border-white/[0.08] bg-[#07080D] mt-20 pt-14 pb-10 text-left">

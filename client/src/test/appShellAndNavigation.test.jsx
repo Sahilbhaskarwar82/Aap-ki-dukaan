@@ -32,7 +32,7 @@ vi.mock('@/context/NotificationContext', () => ({
 
 import { useAuth } from '@/context/AuthContext';
 import { useNotifications } from '@/context/NotificationContext';
-import AppShellLayout, { getNavItemsForRole } from '@/layouts/AppShellLayout';
+import AppShellLayout, { getNavItemsForRole, getNavGroupsForRole } from '@/layouts/AppShellLayout';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 
 // ── Shared test fixtures ───────────────────────────────────────────────────────
@@ -279,6 +279,132 @@ describe('HIM-05: AppShellLayout rendering', () => {
       expect(sidebar).toHaveTextContent('Marketplace');
       unmount();
     }
+  });
+});
+
+// ── 2b. Collapsible Role-Based Sidebar Navigation ─────────────────────────────
+describe('Collapsible Role-Based Sidebar Navigation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    window.localStorage.clear();
+  });
+
+  it('getNavGroupsForRole returns role-specific collapsible groups for all 4 roles', () => {
+    expect(getNavGroupsForRole('SHOP_OWNER').map((g) => g.label)).toEqual([
+      'Sourcing & Pools',
+      'Finance & Account',
+    ]);
+    expect(getNavGroupsForRole('SUPPLIER').map((g) => g.label)).toEqual([
+      'Wholesaler Workspace',
+      'Account & Alerts',
+    ]);
+    expect(getNavGroupsForRole('ADMIN').map((g) => g.label)).toEqual([
+      'Operations',
+      'Catalogue & Trust',
+      'Governance & Alerts',
+    ]);
+    expect(getNavGroupsForRole('REVIEWER').map((g) => g.label)).toEqual([
+      'Compliance & Audit',
+      'Alerts',
+    ]);
+    expect(getNavGroupsForRole('UNKNOWN')).toEqual([]);
+    expect(getNavGroupsForRole(null)).toEqual([]);
+  });
+
+  it('toggles desktop sidebar collapse/expand across all roles and persists per role', async () => {
+    const roleFixtures = [
+      { user: mockShopOwner, groupText: 'Sourcing & Pools', itemText: /group buys/i },
+      { user: mockSupplier, groupText: 'Wholesaler Workspace', itemText: /supplier portal/i },
+      { user: mockAdmin, groupText: 'Operations', itemText: /manage suppliers/i },
+      { user: mockReviewer, groupText: 'Compliance & Audit', itemText: /audit & ai logs/i },
+    ];
+
+    for (const { user, groupText, itemText } of roleFixtures) {
+      setupShell({ user, shop: user.role === 'SHOP_OWNER' ? mockShop : null });
+      const { unmount } = render(
+        <AppShellLayout>
+          <div>Content</div>
+        </AppShellLayout>
+      );
+
+      const sidebar = screen.getByLabelText('Sidebar navigation');
+      expect(sidebar).toHaveAttribute('data-collapsed', 'false');
+      expect(sidebar).toHaveTextContent(groupText);
+
+      const collapseBtn = screen.getByRole('button', { name: /collapse sidebar/i });
+      expect(collapseBtn).toHaveAttribute('aria-expanded', 'true');
+      await userEvent.click(collapseBtn);
+
+      expect(sidebar).toHaveAttribute('data-collapsed', 'true');
+      expect(window.localStorage.getItem(`cobuy_sidebar_collapsed:${user.role}`)).toBe('true');
+
+      // Accessible button names remain intact in icon-rail mode
+      expect(screen.getByRole('button', { name: itemText })).toBeInTheDocument();
+
+      const expandBtn = screen.getByRole('button', { name: /expand sidebar/i });
+      expect(expandBtn).toHaveAttribute('aria-expanded', 'false');
+      await userEvent.click(expandBtn);
+
+      expect(sidebar).toHaveAttribute('data-collapsed', 'false');
+      unmount();
+    }
+  });
+
+  it('collapses and expands role-specific navigation groups independently', async () => {
+    setupShell({ user: mockShopOwner });
+    render(
+      <AppShellLayout currentPath="/dashboard">
+        <div>Dashboard</div>
+      </AppShellLayout>
+    );
+
+    const groupBtn = screen.getByRole('button', { name: /sourcing & pools/i });
+    expect(groupBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: /group buys/i })).toBeInTheDocument();
+
+    // Collapse group
+    await userEvent.click(groupBtn);
+    expect(groupBtn).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('button', { name: /group buys/i })).not.toBeInTheDocument();
+
+    // Second group remains expanded
+    const financeBtn = screen.getByRole('button', { name: /finance & account/i });
+    expect(financeBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: /payments & refunds/i })).toBeInTheDocument();
+
+    // Re-expand first group
+    await userEvent.click(groupBtn);
+    expect(groupBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: /group buys/i })).toBeInTheDocument();
+  });
+
+  it('highlights only the exact matching route on /admin subpaths and maps /refunds to Payments & Refunds', () => {
+    setupShell({ user: mockAdmin, shop: null });
+    const { unmount } = render(
+      <AppShellLayout currentPath="/admin/suppliers">
+        <div>Suppliers Admin</div>
+      </AppShellLayout>
+    );
+
+    expect(screen.getByRole('button', { name: /manage suppliers/i })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
+    expect(screen.getByRole('button', { name: /admin overview/i })).not.toHaveAttribute(
+      'aria-current'
+    );
+    unmount();
+
+    setupShell({ user: mockShopOwner });
+    render(
+      <AppShellLayout currentPath="/refunds">
+        <div>Refunds</div>
+      </AppShellLayout>
+    );
+    expect(screen.getByRole('button', { name: /payments & refunds/i })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
   });
 });
 

@@ -54,7 +54,7 @@
  *     *                     404 Not Found Page
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   BrowserRouter,
   Routes,
@@ -70,6 +70,7 @@ import { NotificationProvider } from '@/context/NotificationContext';
 import { Toaster } from '@/components/ui/Toast';
 import KiranaChatbot from '@/components/common/KiranaChatbot';
 import { Button } from '@/components/ui/Button';
+import { initCollapsibleScrollbars } from '@/utils/collapsibleScrollbar';
 
 // Public & Auth Pages
 import LandingPage from '@/pages/public/LandingPage';
@@ -580,6 +581,8 @@ export function AppRoutes() {
 
 // ── Application Entry Component ───────────────────────────────────────────────
 export default function App() {
+  useEffect(() => initCollapsibleScrollbars(), []);
+
   return (
     <BrowserRouter>
       <AuthProvider>
